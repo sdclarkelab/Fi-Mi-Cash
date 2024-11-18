@@ -1,27 +1,87 @@
 # Fi-Mi-Cash
 
-## Overview
+A full-stack financial management and intelligence application that automates transaction tracking through email processing, powered by AI for smart categorization and comprehensive spending analytics.
 
-This React application provides a user interface for the Transaction Analysis API, allowing users to view and analyze their transaction data.
+![Fi-Mi-Cash Dashboard](https://via.placeholder.com/800x400?text=Fi-Mi-Cash+Dashboard)
 
-## Features
+## 🌟 Features
 
-- View transactions with filtering by date range and categories
-- Transaction summary dashboard
-- Interactive category filtering
-- Responsive design
+- **Smart Email Processing**: Automatically processes and categorizes transaction emails from your bank
+- **AI-Powered Categorization**: Leverages OpenAI's GPT for intelligent transaction categorization
+- **Real-time Analytics**: Dynamic financial summaries with spending patterns and trends
+- **Advanced Filtering**: Filter transactions by date ranges and custom categories
+- **Responsive Design**: Seamless experience across all devices
 
-## Prerequisites
+## 🔧 Tech Stack
 
-- Node.js >= 14
-- npm >= 6
+### Backend
 
-## Installation
+- FastAPI
+- Python 3.8+
+- OpenAI API
+- Gmail API
+- SQLite/PostgreSQL
+- Pydantic for data validation
+
+### Frontend
+
+- React 18
+- TailwindCSS
+- React Query
+- Headless UI
+- React DatePicker
+- Axios
+
+## 📋 Prerequisites
+
+- Python 3.8 or higher
+- Node.js 14 or higher
+- Gmail API credentials
+- OpenAI API key
+
+## 🚀 Quick Start
+
+### Backend Setup
 
 1. Clone the repository:
 
 ```bash
-git clone <repository-url>
+git clone https://github.com/yourusername/fi-mi-cash.git
+cd fi-mi-cash
+```
+
+2. Set up Python virtual environment:
+
+```bash
+python -m venv venv
+source venv/bin/activate  # Linux/Mac
+venv\Scripts\activate     # Windows
+```
+
+3. Install dependencies:
+
+```bash
+pip install -r requirements.txt
+```
+
+4. Configure environment variables:
+
+```bash
+cp .env.example .env
+# Edit .env with your credentials
+```
+
+5. Run the backend:
+
+```bash
+uvicorn app.main:app --reload
+```
+
+### Frontend Setup
+
+1. Navigate to frontend directory:
+
+```bash
 cd frontend
 ```
 
@@ -31,61 +91,107 @@ cd frontend
 npm install
 ```
 
-3. Create .env file:
-
-```bash
-cp .env.example .env
-```
-
-4. Configure environment variables:
-
-- Set REACT_APP_API_BASE_URL to your API endpoint
-
-## Development
-
-Start the development server:
+3. Start the development server:
 
 ```bash
 npm start
 ```
 
-## Build
+## 📁 Project Structure
 
-Create a production build:
+```
+/fi-mi-cash
+├── /backend
+│   ├── /app
+│   │   ├── /api
+│   │   ├── /core
+│   │   ├── /models
+│   │   └── /services
+│   ├── requirements.txt
+│   └── README.md
+└── /frontend
+    ├── /src
+    │   ├── /components
+    │   ├── /services
+    │   ├── /hooks
+    │   └── /utils
+    ├── package.json
+    └── README.md
+```
+
+## 🔒 Authentication Setup
+
+1. Create a Google Cloud Project
+2. Enable Gmail API
+3. Create OAuth 2.0 credentials
+4. Download credentials and save as `credentials.json`
+5. Configure OpenAI API key in `.env`
+
+## 📈 API Endpoints
+
+### Transactions
+
+- `GET /api/v1/transactions/`: Get transactions with filters
+- `GET /api/v1/spending/summary`: Get spending summary
+- `GET /api/v1/categories`: Get available categories
+
+## 🛠️ Development
+
+### Running Tests
 
 ```bash
-npm run build
+# Backend tests
+pytest
+
+# Frontend tests
+cd frontend
+npm test
 ```
 
-## Usage
+### Code Style
 
-The application provides:
+- Backend follows PEP 8
+- Frontend uses ESLint with Airbnb config
 
-1. Date range picker for filtering transactions
-2. Category filter dropdown
-3. Transaction summary cards showing:
-   - Total spending
-   - Transaction count
-   - Average transaction amount
-4. Transaction list with sorting and filtering
+## 🤝 Contributing
 
-## Project Structure
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
 
-```
-/src
-  /components      # React components
-  /services        # API service functions
-  /hooks          # Custom React hooks
-  /utils          # Utility functions
-  /context        # React context providers
-  App.jsx         # Main application component
-  index.js        # Application entry point
-```
+## 📝 License
 
-## Contributing
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-Please read CONTRIBUTING.md for details on our code of conduct and the process for submitting pull requests.
+## 🙏 Acknowledgments
 
-## License
+- OpenAI for GPT API
+- Google for Gmail API
+- All contributors and users
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+## 📧 Contact
+
+Your Name - [@yourusername](https://twitter.com/yourusername)
+
+Project Link: [https://github.com/yourusername/fi-mi-cash](https://github.com/yourusername/fi-mi-cash)
+
+---
+
+## 🎯 Coming Soon
+
+- Multi-bank support
+- Custom category creation
+- Budget planning and tracking
+- Expense predictions using AI
+- Mobile app version
+- Export reports in multiple formats
+- Multi-currency support
+- Automated bill detection and reminders
+
+## 💡 About Fi-Mi-Cash
+
+Fi-Mi-Cash was created to simplify financial management through automation and intelligent analysis. By combining email processing with AI categorization, it provides users with a clear, real-time view of their spending patterns and financial health.
+
+Whether you're tracking personal expenses or managing business transactions, Fi-Mi-Cash turns raw financial data into actionable insights, helping you make informed financial decisions.
