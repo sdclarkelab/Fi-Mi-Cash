@@ -2,8 +2,6 @@
 
 A full-stack financial management and intelligence application that automates transaction tracking through email processing, powered by AI for smart categorization and comprehensive spending analytics.
 
-![Fi-Mi-Cash Dashboard](https://via.placeholder.com/800x400?text=Fi-Mi-Cash+Dashboard)
-
 ## 🌟 Features
 
 - **Smart Email Processing**: Automatically processes and categorizes transaction emails from your bank
