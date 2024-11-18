@@ -1,0 +1,13 @@
+# Ignore credentials and token files
+credentials.json
+token.json
+
+# Ignore PyCharm project files
+.idea/
+
+# Ignore virtual environment directory
+venv/
+
+# Ignore environment variable files
+.env
+
