@@ -1,4 +1,4 @@
-# Transaction Analysis API
+# Fi Me Cash API
 
 ## Overview
 This API processes Gmail transaction emails and provides spending analysis using AI-powered categorization.
