@@ -71,7 +71,7 @@ class TransactionService:
         )
 
     def _build_gmail_query(self, date_range: Optional[DateRange]) -> str:
-        query = 'from:no-reply-ncbcardalerts@jncb.com subject:"Transaction Approved"'
+        query = 'from:no-reply-ncbcardalerts@jncb.com'
 
         if date_range:
             if date_range.start_date:
@@ -79,6 +79,7 @@ class TransactionService:
             if date_range.end_date:
                 query += f' before:{int(date_range.end_date.timestamp())}'
 
+        query += ' "NCB VISA PLATINUM" "Transaction Approved"'
         return query
 
     async def _parse_transaction(
@@ -86,19 +87,29 @@ class TransactionService:
             email: EmailMessage
     ) -> Optional[Transaction]:
 
-        amount_pattern = r'<div class="mobilestyle">Amount</div></td>\s*<td[^>]*><div class="mobilestyle">([\w\s,.]+)</div>'
-        merchant_pattern = r'<div class="mobilestyle">Merchant</div></td>\s*<td[^>]*><div class="mobilestyle">([\w\s\'-]+)</div>'
-
-        amount_match = re.search(amount_pattern, email.body)
-        merchant_match = re.search(merchant_pattern, email.body)
-
-        if not amount_match or not merchant_match:
-            logger.warning(f"Failed to parse transaction from email dated {email.date}")
-            return None
-
         try:
-            amount = Decimal(amount_match.group(1).replace('USD', '').replace('JMD', '').replace(',', ''))
-            merchant = merchant_match.group(1).strip()
+            amount = 0.0
+
+            amount_pattern = r'(?P<currency>USD|JMD)\s+(?P<amount>[\d,\.]+)'
+            amount_match = re.search(amount_pattern, email.body)
+
+            # Get both the currency and amount
+            if amount_match:
+                currency = amount_match.group('currency')  # Get currency from named group
+                # Remove commas from amount and convert to float
+                if currency == 'USD':
+                    amount = Decimal(amount_match.group('amount').replace(',', '')) * Decimal('158')
+                elif currency == 'JMD':
+                    amount = Decimal(amount_match.group('amount').replace(',', ''))
+
+            # Pattern for merchant - looks for content between Merchant and /div
+            merchant_pattern = r'Merchant</div></td>\s*<td[^>]*><div[^>]*>([^<]+)</div>'
+            merchant_match = re.search(merchant_pattern, email.body)
+            merchant = merchant_match.group(1).strip() if merchant_match else ""
+
+            if not amount or not merchant:
+                logger.warning(f"Failed to parse transaction from email dated {email.date}")
+                return None
 
             classification = await self.classifier.classify_merchant(merchant)
 

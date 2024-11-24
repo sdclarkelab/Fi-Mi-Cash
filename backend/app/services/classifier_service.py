@@ -84,6 +84,11 @@ class MerchantClassifier:
         - Home & Hardware (furniture, repairs, etc.)
         - Financial Services (banking, investments, etc.)
         - Other
+        
+        Pricesmart should be classified as "Groceries".
+        HI-LO should be classified as "Groceries".
+        DIGP should be classified as "Utilities".
+        NWCJ should be classified as "Utilities"
 
         Respond in JSON format:
         {

@@ -3,13 +3,19 @@ import { useSummary } from "../hooks/useSummary";
 import { formatCurrency } from "../utils/formatters";
 import { useDateRange } from "../context/DateRangeContext";
 import LoadingSpinner from "./LoadingSpinner";
+import ErrorAlert from "./ErrorAlert";
 
-const TransactionSummary = () => {
-  const { dateRange } = useDateRange();
-  const { data: summary, isLoading, error } = useSummary(dateRange);
+const TransactionSummary = ({ category, subcategory }) => {
+  const { appliedDateRange } = useDateRange();
+  const {
+    data: summary,
+    isLoading,
+    error,
+    refetch,
+  } = useSummary({ category, subcategory }, appliedDateRange);
 
   if (isLoading) return <LoadingSpinner />;
-  if (error) return <div>Error loading summary</div>;
+  if (error) return <ErrorAlert error={error} onRetry={refetch} />;
 
   return (
     <div className="mt-8 grid grid-cols-1 gap-5 sm:grid-cols-3">
