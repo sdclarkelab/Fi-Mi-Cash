@@ -58,5 +58,5 @@ class TransactionSummary(BaseModel):
 
 
 class DateRange(BaseModel):
-    startDate: Optional[datetime] = None
-    endDate: Optional[datetime] = None
+    start_date: Optional[datetime] = None
+    end_date: Optional[datetime] = None

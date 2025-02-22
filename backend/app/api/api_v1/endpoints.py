@@ -16,8 +16,8 @@ router = APIRouter()
 
 @router.get("/transactions/", response_model=List[Transaction])
 async def get_transactions(
-        startDate: Optional[datetime] = Query(None, alias="startDate"),
-        endDate: Optional[datetime] = Query(None, alias="endDate"),
+        start_date: Optional[datetime] = Query(None, alias="startDate"),
+        end_date: Optional[datetime] = Query(None, alias="endDate"),
         category: Optional[str] = None,
         subcategory: Optional[str] = None,
         min_confidence: float = Query(default=0.0, ge=0.0, le=1.0),
@@ -26,7 +26,7 @@ async def get_transactions(
     """
     Get transactions with optional filters.
     """
-    date_range = DateRange(startDate=startDate, endDate=endDate)
+    date_range = DateRange(start_date=start_date, end_date=end_date)
     return await service.get_transactions(
         date_range=date_range,
         category=category,
@@ -37,15 +37,15 @@ async def get_transactions(
 
 @router.get("/spending/summary", response_model=TransactionSummary)
 async def get_spending_summary(
-        startDate: Optional[datetime] = None,
-        endDate: Optional[datetime] = None,
+        start_date: Optional[datetime] = Query(None, alias="startDate"),
+        end_date: Optional[datetime] = Query(None, alias="endDate"),
         min_confidence: float = Query(default=0.0, ge=0.0, le=1.0),
         service: TransactionService = Depends(get_transaction_service)
 ):
     """
     Get spending summary within date range.
     """
-    date_range = DateRange(startDate=startDate, endDate=endDate)
+    date_range = DateRange(start_date=start_date, end_date=end_date)
     transactions = await service.get_transactions(
         date_range=date_range,
         min_confidence=min_confidence

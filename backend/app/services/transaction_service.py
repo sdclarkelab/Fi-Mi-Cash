@@ -74,10 +74,10 @@ class TransactionService:
         query = 'from:no-reply-ncbcardalerts@jncb.com'
 
         if date_range:
-            if date_range.startDate:
-                query += f' after:{int(date_range.startDate.timestamp())}'
+            if date_range.start_date:
+                query += f' after:{int(date_range.start_date.timestamp())}'
             if date_range.endDate:
-                query += f' before:{int(date_range.endDate.timestamp())}'
+                query += f' before:{int(date_range.end_date.timestamp())}'
 
         query += ' "Transaction Approved" ("NCB VISA PLATINUM" OR "MASTERCARD PLATINUM USD")'
         return query
