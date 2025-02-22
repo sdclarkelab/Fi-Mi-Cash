@@ -1,7 +1,9 @@
 from datetime import datetime
+from encodings.aliases import aliases
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, Query
+from pydantic import Field
 
 from app.api.api_v1.dependencies import get_transaction_service
 from app.models.schemas import (
@@ -14,8 +16,8 @@ router = APIRouter()
 
 @router.get("/transactions/", response_model=List[Transaction])
 async def get_transactions(
-        start_date: Optional[datetime] = None,
-        end_date: Optional[datetime] = None,
+        startDate: Optional[datetime] = Query(None, alias="startDate"),
+        endDate: Optional[datetime] = Query(None, alias="endDate"),
         category: Optional[str] = None,
         subcategory: Optional[str] = None,
         min_confidence: float = Query(default=0.0, ge=0.0, le=1.0),
@@ -24,7 +26,7 @@ async def get_transactions(
     """
     Get transactions with optional filters.
     """
-    date_range = DateRange(start_date=start_date, end_date=end_date)
+    date_range = DateRange(startDate=startDate, endDate=endDate)
     return await service.get_transactions(
         date_range=date_range,
         category=category,
@@ -35,15 +37,15 @@ async def get_transactions(
 
 @router.get("/spending/summary", response_model=TransactionSummary)
 async def get_spending_summary(
-        start_date: Optional[datetime] = None,
-        end_date: Optional[datetime] = None,
+        startDate: Optional[datetime] = None,
+        endDate: Optional[datetime] = None,
         min_confidence: float = Query(default=0.0, ge=0.0, le=1.0),
         service: TransactionService = Depends(get_transaction_service)
 ):
     """
     Get spending summary within date range.
     """
-    date_range = DateRange(start_date=start_date, end_date=end_date)
+    date_range = DateRange(startDate=startDate, endDate=endDate)
     transactions = await service.get_transactions(
         date_range=date_range,
         min_confidence=min_confidence

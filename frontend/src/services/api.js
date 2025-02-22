@@ -31,9 +31,9 @@ export const fetchTransactions = async ({
   try {
     const params = new URLSearchParams();
     if (startDate instanceof Date)
-      params.append("start_date", startDate.toISOString());
+      params.append("startDate", startDate.toISOString());
     if (endDate instanceof Date)
-      params.append("end_date", endDate.toISOString());
+      params.append("endDate", endDate.toISOString());
     if (category) params.append("category", category);
     if (subcategory) params.append("subcategory", subcategory);
     if (typeof minConfidence === "number")
@@ -55,9 +55,9 @@ export const fetchSummary = async ({
   try {
     const params = new URLSearchParams();
     if (startDate instanceof Date)
-      params.append("start_date", startDate.toISOString());
+      params.append("startDate", startDate.toISOString());
     if (endDate instanceof Date)
-      params.append("end_date", endDate.toISOString());
+      params.append("endDate", endDate.toISOString());
     if (typeof minConfidence === "number")
       params.append("min_confidence", minConfidence.toString());
 
