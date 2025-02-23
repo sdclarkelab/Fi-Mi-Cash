@@ -1,20 +1,22 @@
 // src/components/TransactionList.jsx
 import React from "react";
-import { useTransactions } from "../hooks/useTransactions";
+import { useTransactionData } from "../hooks/useTransactionData";
 import { formatCurrency, formatDate } from "../utils/formatters";
 import { useDateRange } from "../context/DateRangeContext";
+import { useTransactionContext } from "../context/TransactionContext";
 import LoadingSpinner from "./LoadingSpinner";
 import ErrorAlert from "./ErrorAlert";
 
-const TransactionList = ({ category, subcategory }) => {
+const TransactionList = () => {
   const { appliedDateRange } = useDateRange();
-  const {
-    data: transactions,
-    isLoading,
-    error,
-    isFetching,
-    refetch,
-  } = useTransactions({ category, subcategory }, appliedDateRange);
+  const { filters } = useTransactionContext();
+
+  const { data, isLoading, error, isFetching, refetch } = useTransactionData(
+    filters,
+    appliedDateRange
+  );
+
+  const transactions = data?.transactions || [];
 
   if (isLoading) {
     return (
@@ -77,8 +79,8 @@ const TransactionList = ({ category, subcategory }) => {
             </h2>
             <p className="mt-2 text-sm text-gray-700">
               Showing {transactions.length} transactions for the selected period
-              {category && ` in ${category}`}
-              {subcategory && ` - ${subcategory}`}.
+              {filters.category && ` in ${filters.category}`}
+              {filters.subcategory && ` - ${filters.subcategory}`}.
             </p>
           </div>
         </div>

@@ -3,13 +3,25 @@ import React from "react";
 import { useQuery } from "@tanstack/react-query";
 import { fetchCategories } from "../services/api";
 import { Menu } from "@headlessui/react";
-import { HiChevronDown } from "react-icons/hi"; // Fixed icon import
+import { HiChevronDown } from "react-icons/hi";
+import { useTransactionContext } from "../context/TransactionContext";
 
-const CategoryFilter = ({ onSelectCategory }) => {
+const CategoryFilter = () => {
+  const { filters, updateFilters } = useTransactionContext();
   const { data: categories, isLoading } = useQuery({
     queryKey: ["categories"],
     queryFn: fetchCategories,
   });
+
+  const getDisplayText = () => {
+    if (filters.category && filters.subcategory) {
+      return `${filters.category} - ${filters.subcategory}`;
+    }
+    if (filters.category) {
+      return filters.category;
+    }
+    return "Select Category";
+  };
 
   if (isLoading) return null;
 
@@ -19,7 +31,7 @@ const CategoryFilter = ({ onSelectCategory }) => {
         {({ open }) => (
           <>
             <Menu.Button className="inline-flex justify-center w-48 rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
-              <span className="flex-1 text-left">Select Category</span>
+              <span className="flex-1 text-left">{getDisplayText()}</span>
               <HiChevronDown
                 className="w-5 h-5 ml-2 -mr-1"
                 aria-hidden="true"
@@ -41,7 +53,7 @@ const CategoryFilter = ({ onSelectCategory }) => {
                             } w-full text-left px-4 py-2 text-sm font-medium border-l-4 ${
                               active ? "border-blue-500" : "border-transparent"
                             }`}
-                            onClick={() => onSelectCategory(category)}
+                            onClick={() => updateFilters(category)}
                           >
                             {category}
                           </button>
@@ -62,7 +74,7 @@ const CategoryFilter = ({ onSelectCategory }) => {
                                   : "border-transparent"
                               }`}
                               onClick={() =>
-                                onSelectCategory(category, subcategory)
+                                updateFilters(category, subcategory)
                               }
                             >
                               {subcategory}
