@@ -76,7 +76,7 @@ class TransactionService:
         if date_range:
             if date_range.start_date:
                 query += f' after:{int(date_range.start_date.timestamp())}'
-            if date_range.endDate:
+            if date_range.end_date:
                 query += f' before:{int(date_range.end_date.timestamp())}'
 
         query += ' "Transaction Approved" ("NCB VISA PLATINUM" OR "MASTERCARD PLATINUM USD")'

@@ -35,7 +35,6 @@ class Transaction(BaseModel):
             Decimal: lambda v: float(v)
         }
 
-
 class CategorySummary(BaseModel):
     total: Decimal
     count: int
@@ -60,3 +59,8 @@ class TransactionSummary(BaseModel):
 class DateRange(BaseModel):
     start_date: Optional[datetime] = None
     end_date: Optional[datetime] = None
+
+
+class TransactionList(BaseModel):
+    transaction_summary: TransactionSummary
+    transactions: List[Transaction]
