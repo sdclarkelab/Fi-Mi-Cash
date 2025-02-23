@@ -1,21 +1,25 @@
 import React from "react";
-import { useSummary } from "../hooks/useSummary";
+import { useTransactionData } from "../hooks/useTransactionData";
 import { formatCurrency } from "../utils/formatters";
 import { useDateRange } from "../context/DateRangeContext";
+import { useTransactionContext } from "../context/TransactionContext";
 import LoadingSpinner from "./LoadingSpinner";
 import ErrorAlert from "./ErrorAlert";
 
-const TransactionSummary = ({ category, subcategory }) => {
+const TransactionSummary = () => {
   const { appliedDateRange } = useDateRange();
-  const {
-    data: summary,
-    isLoading,
-    error,
-    refetch,
-  } = useSummary({ category, subcategory }, appliedDateRange);
+  const { filters } = useTransactionContext();
+
+  const { data, isLoading, error, refetch } = useTransactionData(
+    filters,
+    appliedDateRange
+  );
 
   if (isLoading) return <LoadingSpinner />;
   if (error) return <ErrorAlert error={error} onRetry={refetch} />;
+
+  const summary = data?.transaction_summary;
+  if (!summary) return null;
 
   return (
     <div className="mt-8 grid grid-cols-1 gap-5 sm:grid-cols-3">

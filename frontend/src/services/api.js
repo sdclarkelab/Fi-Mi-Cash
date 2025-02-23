@@ -46,28 +46,6 @@ export const fetchTransactions = async ({
   }
 };
 
-// Similar error handling for other API calls
-export const fetchSummary = async ({
-  startDate,
-  endDate,
-  minConfidence = 0.0,
-}) => {
-  try {
-    const params = new URLSearchParams();
-    if (startDate instanceof Date)
-      params.append("startDate", startDate.toISOString());
-    if (endDate instanceof Date)
-      params.append("endDate", endDate.toISOString());
-    if (typeof minConfidence === "number")
-      params.append("min_confidence", minConfidence.toString());
-
-    const { data } = await api.get(`/spending/summary?${params.toString()}`);
-    return data;
-  } catch (error) {
-    throw new Error(`Failed to fetch summary: ${error.message}`);
-  }
-};
-
 export const fetchCategories = async () => {
   try {
     const { data } = await api.get("/categories");

@@ -73,7 +73,7 @@ class MerchantClassifier:
         You are a merchant classification expert. Analyze the merchant name and classify it into the most appropriate category.
 
         Primary categories:
-        - Food & Dining (restaurants, groceries, etc.)
+        - Food & Dining (restaurants or groceries)
         - Shopping & Retail (clothing, electronics, etc.)
         - Transportation (gas, public transit, etc.)
         - Entertainment (movies, events, etc.)
@@ -85,10 +85,12 @@ class MerchantClassifier:
         - Financial Services (banking, investments, etc.)
         - Other
         
+        Cafes and other food establishments should as either Groceries or Restaurants.
         Pricesmart should be classified as "Groceries".
         HI-LO should be classified as "Groceries".
         DIGP should be classified as "Utilities".
         NWCJ should be classified as "Utilities"
+        FONTANA should be classified as "Pharmacy".
 
         Respond in JSON format:
         {

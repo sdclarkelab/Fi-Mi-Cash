@@ -1,6 +1,7 @@
-import React, { useState } from "react";
+import React from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { DateRangeProvider } from "./context/DateRangeContext";
+import { TransactionProvider } from "./context/TransactionContext";
 import ErrorBoundary from "./components/ErrorBoundary";
 import Header from "./components/Header";
 import DateRangePicker from "./components/DateRangePicker";
@@ -19,41 +20,30 @@ const queryClient = new QueryClient({
 });
 
 const App = () => {
-  const [selectedCategory, setSelectedCategory] = useState(null);
-  const [selectedSubcategory, setSelectedSubcategory] = useState(null);
-
-  const handleCategorySelect = (category, subcategory = null) => {
-    setSelectedCategory(category);
-    setSelectedSubcategory(subcategory);
-  };
-
   return (
     <QueryClientProvider client={queryClient}>
       <ErrorBoundary>
         <DateRangeProvider>
-          <div className="min-h-screen bg-gray-100">
-            <Header />
-            <main className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
-              {/* Added relative positioning and z-index to the filters container */}
-              <div className="relative z-10 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-                <DateRangePicker />
-                <CategoryFilter onSelectCategory={handleCategorySelect} />
-              </div>
+          <TransactionProvider>
+            <div className="min-h-screen bg-gray-100">
+              <Header />
+              <main className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+                <div className="relative z-10 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+                  <DateRangePicker />
+                  <CategoryFilter />
+                </div>
 
-              {/* Removed z-index from content area */}
-              <div className="space-y-6">
-                <ErrorBoundary>
-                  <TransactionSummary />
-                </ErrorBoundary>
-                <ErrorBoundary>
-                  <TransactionList
-                    category={selectedCategory}
-                    subcategory={selectedSubcategory}
-                  />
-                </ErrorBoundary>
-              </div>
-            </main>
-          </div>
+                <div className="space-y-6">
+                  <ErrorBoundary>
+                    <TransactionSummary />
+                  </ErrorBoundary>
+                  <ErrorBoundary>
+                    <TransactionList />
+                  </ErrorBoundary>
+                </div>
+              </main>
+            </div>
+          </TransactionProvider>
         </DateRangeProvider>
       </ErrorBoundary>
     </QueryClientProvider>
