@@ -1,17 +1,19 @@
 import re
+import uuid
 from collections import defaultdict
 from decimal import Decimal
 from typing import List, Optional
 
+from sqlalchemy.orm import Session
+
 from app.core.logger import logger
+from app.db.crud import TransactionCrud
 from app.models.schemas import (
     Transaction, TransactionSummary, CategorySummary,
     EmailMessage, DateRange
 )
 from app.services.classifier_service import MerchantClassifier
 from app.services.gmail_service import GmailService
-from app.db.crud import TransactionCrud
-from sqlalchemy.orm import Session
 
 
 class TransactionService:
@@ -30,26 +32,29 @@ class TransactionService:
             date_range: Optional[DateRange] = None,
             category: Optional[str] = None,
             subcategory: Optional[str] = None,
-            min_confidence: float = 0.0
+            min_confidence: float = 0.0,
+            include_excluded: bool = True
     ) -> List[Transaction]:
         # First sync transactions from emails to database
         await self._sync_transactions(date_range)
 
         # Then retrieve transactions from database with filters
         db_transactions = TransactionCrud.get_transactions(
-            self.db, date_range, category, subcategory, min_confidence
+            self.db, date_range, category, subcategory, min_confidence, include_excluded
         )
 
         # Convert DB models to Pydantic models
         return [
             Transaction(
+                id=uuid.UUID(tx.id),
                 date=tx.date,
                 amount=Decimal(str(tx.amount)),
                 merchant=tx.merchant,
                 primary_category=tx.primary_category,
                 subcategory=tx.subcategory,
                 confidence=tx.confidence,
-                description=tx.description
+                description=tx.description,
+                excluded=tx.excluded
             ) for tx in db_transactions
         ]
 
@@ -70,10 +75,15 @@ class TransactionService:
         if not transactions:
             return self._empty_summary()
 
+        included_transactions = [t for t in transactions if not t.excluded]
+
+        if not included_transactions:
+            return self._empty_summary()
+
         primary_categories = defaultdict(lambda: self._empty_category_summary())
         subcategories = defaultdict(lambda: self._empty_category_summary())
 
-        for transaction in transactions:
+        for transaction in included_transactions:
             self._update_category_summary(
                 primary_categories[transaction.primary_category],
                 transaction
@@ -84,12 +94,12 @@ class TransactionService:
             )
 
         return TransactionSummary(
-            total_spending=sum(t.amount for t in transactions),
-            transaction_count=len(transactions),
-            average_transaction=sum(t.amount for t in transactions) / len(transactions),
+            total_spending=sum(t.amount for t in included_transactions),
+            transaction_count=len(included_transactions),
+            average_transaction=sum(t.amount for t in included_transactions) / len(transactions),
             by_primary_category=dict(primary_categories),
             by_subcategory=dict(subcategories),
-            merchants=list(set(t.merchant for t in transactions))
+            merchants=list(set(t.merchant for t in included_transactions))
         )
 
     def _build_gmail_query(self, date_range: Optional[DateRange]) -> str:
@@ -136,6 +146,7 @@ class TransactionService:
             classification = await self.classifier.classify_merchant(merchant)
 
             return Transaction(
+                id=uuid.uuid4(),
                 date=email.date,
                 amount=amount,
                 merchant=merchant,
@@ -148,8 +159,8 @@ class TransactionService:
             logger.error(f"Error processing transaction: {str(e)}")
             return None
 
+    @staticmethod
     def _matches_filters(
-            self,
             transaction: Transaction,
             category: Optional[str],
             subcategory: Optional[str],
@@ -191,3 +202,20 @@ class TransactionService:
         summary.average = summary.total / summary.count
         if transaction.merchant not in summary.merchants:
             summary.merchants.append(transaction.merchant)
+
+    async def set_transaction_exclusion(self, transaction_id: uuid.UUID, excluded: bool) -> Optional[Transaction]:
+        """Set the exclusion status of a transaction"""
+        tx = TransactionCrud.set_exclusion(self.db, transaction_id, excluded)
+        if tx:
+            return Transaction(
+                id=uuid.UUID(tx.id),
+                date=tx.date,
+                amount=Decimal(str(tx.amount)),
+                merchant=tx.merchant,
+                primary_category=tx.primary_category,
+                subcategory=tx.subcategory,
+                confidence=tx.confidence,
+                description=tx.description,
+                excluded=tx.excluded
+            )
+        return None

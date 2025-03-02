@@ -54,3 +54,17 @@ export const fetchCategories = async () => {
     throw new Error(`Failed to fetch categories: ${error.message}`);
   }
 };
+
+export const toggleTransactionExclusion = async (transactionId, excluded) => {
+  try {
+    const { data } = await api.patch(
+      `/transactions/${transactionId}/toggle-exclude`,
+      {
+        excluded: excluded,
+      }
+    );
+    return data;
+  } catch (error) {
+    throw new Error(`Failed to toggle transaction exclusion: ${error.message}`);
+  }
+};
