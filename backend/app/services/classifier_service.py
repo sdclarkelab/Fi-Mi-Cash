@@ -90,7 +90,8 @@ class MerchantClassifier:
         HI-LO should be classified as "Groceries".
         DIGP should be classified as "Utilities".
         NWCJ should be classified as "Utilities"
-        FONTANA should be classified as "Pharmacy".
+        FONTANA -WATERLOO SQUARE should be classified as "Pharmacy".
+        JOHN R WONG SUPERMARKET should be classified as "Restaurants".
 
         Respond in JSON format:
         {

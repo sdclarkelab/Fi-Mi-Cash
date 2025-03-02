@@ -12,6 +12,7 @@ from app.config import get_settings
 from app.core.exceptions import GmailAPIError
 from app.core.logger import logger
 from app.models.schemas import EmailMessage
+from google.auth.exceptions import RefreshError
 
 settings = get_settings()
 
@@ -26,7 +27,8 @@ class GmailService:
             self._service = self._initialize_service()
         return self._service
 
-    def _initialize_service(self):
+    @staticmethod
+    def _initialize_service():
         try:
             creds = None
             if os.path.exists(settings.GMAIL_TOKEN_PATH):
@@ -35,16 +37,26 @@ class GmailService:
 
             if not creds or not creds.valid:
                 if creds and creds.expired and creds.refresh_token:
-                    creds.refresh(Request())
-                else:
+                    try:
+                        creds.refresh(Request())
+                    except RefreshError as e:
+                        # Token refresh failed, need to re-authenticate
+                        logger.warning(f"Token refresh failed: {e}. Initiating new authentication flow.")
+                        creds = None
+                        # Remove invalid token file
+                        if os.path.exists(settings.GMAIL_TOKEN_PATH):
+                            os.remove(settings.GMAIL_TOKEN_PATH)
+
+                # If still no valid credentials, run the authorization flow
+                if not creds or not creds.valid:
                     flow = InstalledAppFlow.from_client_secrets_file(
                         settings.GMAIL_CREDENTIALS_PATH,
                         settings.GMAIL_SCOPES
                     )
                     creds = flow.run_local_server(port=0)
 
-                with open(settings.GMAIL_TOKEN_PATH, 'wb') as token:
-                    pickle.dump(creds, token)
+                    with open(settings.GMAIL_TOKEN_PATH, 'wb') as token:
+                        pickle.dump(creds, token)
 
             return build('gmail', 'v1', credentials=creds)
 
