@@ -1,13 +1,12 @@
 import uuid
 from datetime import datetime
-from typing import List, Optional
+from typing import Optional
 
 from fastapi import APIRouter, Depends, Query, HTTPException
-from pydantic import Field
 
 from app.api.api_v1.dependencies import get_transaction_service
 from app.models.schemas import (
-    Transaction, TransactionSummary, DateRange, TransactionList
+    Transaction, DateRange, TransactionList
 )
 from app.services.transaction_service import TransactionService
 
@@ -38,17 +37,19 @@ async def get_transactions(
     summary = await service.get_summary(transactions)
     return TransactionList(transactions=transactions, transaction_summary=summary)
 
+
 @router.patch("/transactions/{transaction_id}/toggle-exclude", response_model=Transaction)
 async def toggle_transaction_exclusion(
-    transaction_id: uuid.UUID,
-    excluded: bool,
-    service: TransactionService = Depends(get_transaction_service)
+        transaction_id: uuid.UUID,
+        excluded: bool,
+        service: TransactionService = Depends(get_transaction_service)
 ):
     """Toggle whether a transaction is excluded from calculations"""
     transaction = await service.set_transaction_exclusion(transaction_id, excluded)
     if not transaction:
         raise HTTPException(status_code=404, detail="Transaction not found")
     return transaction
+
 
 @router.get("/categories")
 async def get_categories(
