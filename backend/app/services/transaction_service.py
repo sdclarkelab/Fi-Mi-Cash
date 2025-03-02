@@ -10,16 +10,20 @@ from app.models.schemas import (
 )
 from app.services.classifier_service import MerchantClassifier
 from app.services.gmail_service import GmailService
+from app.db.crud import TransactionCrud
+from sqlalchemy.orm import Session
 
 
 class TransactionService:
     def __init__(
             self,
             gmail_service: GmailService,
-            classifier: MerchantClassifier
+            classifier: MerchantClassifier,
+            db: Session
     ):
         self.gmail_service = gmail_service
         self.classifier = classifier
+        self.db = db
 
     async def get_transactions(
             self,
@@ -28,18 +32,36 @@ class TransactionService:
             subcategory: Optional[str] = None,
             min_confidence: float = 0.0
     ) -> List[Transaction]:
-        query = self._build_gmail_query(date_range)
+        # First sync transactions from emails to database
+        await self._sync_transactions(date_range)
+
+        # Then retrieve transactions from database with filters
+        db_transactions = TransactionCrud.get_transactions(
+            self.db, date_range, category, subcategory, min_confidence
+        )
+
+        # Convert DB models to Pydantic models
+        return [
+            Transaction(
+                date=tx.date,
+                amount=Decimal(str(tx.amount)),
+                merchant=tx.merchant,
+                primary_category=tx.primary_category,
+                subcategory=tx.subcategory,
+                confidence=tx.confidence,
+                description=tx.description
+            ) for tx in db_transactions
+        ]
+
+    async def _sync_transactions(self, date_range: Optional[DateRange] = None):
+        """Fetch transactions from Gmail and store in SQLite if not already present"""
+        query = self._build_gmail_query(date_range)  # Use date_range parameter
         emails = self.gmail_service.get_messages(query)
 
-        transactions = []
         for email in emails:
             transaction = await self._parse_transaction(email)
-            if transaction and self._matches_filters(
-                    transaction, category, subcategory, min_confidence
-            ):
-                transactions.append(transaction)
-
-        return transactions
+            if transaction and not TransactionCrud.transaction_exists(self.db, transaction):
+                TransactionCrud.create_transaction(self.db, transaction)
 
     async def get_summary(
             self,

@@ -7,6 +7,11 @@ from app.services.gmail_service import GmailService
 from app.services.transaction_service import TransactionService
 
 
+from sqlalchemy.orm import Session
+
+from app.db.database import get_db
+
+
 @lru_cache()
 def get_gmail_service() -> GmailService:
     return GmailService()
@@ -17,8 +22,13 @@ def get_merchant_classifier() -> MerchantClassifier:
     return MerchantClassifier()
 
 
-def get_transaction_service(
-        gmail_service: GmailService = Depends(get_gmail_service),
-        classifier: MerchantClassifier = Depends(get_merchant_classifier)
+async def get_transaction_service(
+    db: Session = Depends(get_db)
 ) -> TransactionService:
-    return TransactionService(gmail_service, classifier)
+    gmail_service = GmailService()
+    classifier = get_merchant_classifier()  # Use the existing function
+    return TransactionService(
+        gmail_service=gmail_service,
+        classifier=classifier,
+        db=db
+    )
