@@ -1,9 +1,8 @@
 import uuid
 
 from sqlalchemy import Column, String, DateTime, Numeric, Float, Boolean
-from sqlalchemy.ext.declarative import declarative_base
 
-Base = declarative_base()
+from app.db.base_class import Base
 
 
 class TransactionModel(Base):

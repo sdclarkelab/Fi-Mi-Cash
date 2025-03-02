@@ -6,8 +6,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.api_v1.endpoints import router as api_router
 from app.config import get_settings
 from app.core.logger import logger
+from app.db.base_class import Base
 from app.db.database import engine
-from app.models.transaction_model import Base
 
 settings = get_settings()
 
@@ -36,7 +36,7 @@ app = FastAPI(
 # CORS middleware configuration
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  #TODO: Update this to only allow specific origins
+    allow_origins=["*"],  # TODO: Update this to only allow specific origins
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
