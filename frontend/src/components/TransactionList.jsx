@@ -1,15 +1,16 @@
-// src/components/TransactionList.jsx
-import React from "react";
+import React, { useState } from "react";
 import { useTransactionData } from "../hooks/useTransactionData";
 import { formatCurrency, formatDate } from "../utils/formatters";
 import { useDateRange } from "../context/DateRangeContext";
 import { useTransactionContext } from "../context/TransactionContext";
 import LoadingSpinner from "./LoadingSpinner";
 import ErrorAlert from "./ErrorAlert";
+import { toggleTransactionExclusion as apiToggleExclusion } from "../services/api";
 
 const TransactionList = () => {
   const { appliedDateRange } = useDateRange();
   const { filters } = useTransactionContext();
+  const [updatingTransactionId, setUpdatingTransactionId] = useState(null);
 
   const { data, isLoading, error, isFetching, refetch } = useTransactionData(
     filters,
@@ -17,6 +18,18 @@ const TransactionList = () => {
   );
 
   const transactions = data?.transactions || [];
+
+  const toggleTransactionExclusion = async (transactionId, currentExcluded) => {
+    try {
+      setUpdatingTransactionId(transactionId);
+      await apiToggleExclusion(transactionId, !currentExcluded);
+      await refetch();
+    } catch (error) {
+      console.error(error.message);
+    } finally {
+      setUpdatingTransactionId(null);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -48,7 +61,7 @@ const TransactionList = () => {
             strokeLinecap="round"
             strokeLinejoin="round"
             strokeWidth={2}
-            d="M9 13h6m-3-3v6m-9 1V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"
+            d="M9 13h6m-3-3v6m-9 1V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2-2H5a2 2 0 01-2-2z"
           />
         </svg>
         <h3 className="mt-2 text-sm font-medium text-gray-900">
@@ -121,6 +134,12 @@ const TransactionList = () => {
                   >
                     Confidence
                   </th>
+                  <th
+                    scope="col"
+                    className="px-3 py-3.5 text-center text-sm font-semibold text-gray-900"
+                  >
+                    Status
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200 bg-white">
@@ -170,6 +189,52 @@ const TransactionList = () => {
                           {Math.round(transaction.confidence * 100)}%
                         </span>
                       </div>
+                    </td>
+                    <td className="whitespace-nowrap px-3 py-4 text-sm text-center">
+                      <button
+                        onClick={() =>
+                          toggleTransactionExclusion(
+                            transaction.id,
+                            transaction.excluded
+                          )
+                        }
+                        disabled={updatingTransactionId === transaction.id}
+                        className={`px-3 py-1 rounded-md text-sm font-medium ${
+                          transaction.excluded
+                            ? "bg-red-100 text-red-800 hover:bg-red-200"
+                            : "bg-green-100 text-green-800 hover:bg-green-200"
+                        }`}
+                      >
+                        {updatingTransactionId === transaction.id ? (
+                          <span className="inline-flex items-center">
+                            <svg
+                              className="animate-spin -ml-1 mr-2 h-4 w-4 text-current"
+                              xmlns="http://www.w3.org/2000/svg"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                            >
+                              <circle
+                                className="opacity-25"
+                                cx="12"
+                                cy="12"
+                                r="10"
+                                stroke="currentColor"
+                                strokeWidth="4"
+                              ></circle>
+                              <path
+                                className="opacity-75"
+                                fill="currentColor"
+                                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                              ></path>
+                            </svg>
+                            Updating...
+                          </span>
+                        ) : transaction.excluded ? (
+                          "Excluded"
+                        ) : (
+                          "Include"
+                        )}
+                      </button>
                     </td>
                   </tr>
                 ))}
