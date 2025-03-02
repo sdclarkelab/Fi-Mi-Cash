@@ -4,6 +4,7 @@ import pickle
 from datetime import datetime
 from typing import List
 
+from google.auth.exceptions import RefreshError
 from google.auth.transport.requests import Request
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
@@ -12,7 +13,6 @@ from app.config import get_settings
 from app.core.exceptions import GmailAPIError
 from app.core.logger import logger
 from app.models.schemas import EmailMessage
-from google.auth.exceptions import RefreshError
 
 settings = get_settings()
 

@@ -2,7 +2,6 @@ import uuid
 from datetime import datetime
 from decimal import Decimal
 from typing import List, Optional, Dict
-from uuid import uuid4
 
 from pydantic import BaseModel, Field
 
@@ -36,6 +35,7 @@ class Transaction(BaseModel):
         json_encoders = {
             Decimal: lambda v: float(v)
         }
+
 
 class CategorySummary(BaseModel):
     total: Decimal

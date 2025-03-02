@@ -4,15 +4,16 @@ from collections import defaultdict
 from decimal import Decimal
 from typing import List, Optional
 
+from sqlalchemy.orm import Session
+
 from app.core.logger import logger
+from app.db.crud import TransactionCrud
 from app.models.schemas import (
     Transaction, TransactionSummary, CategorySummary,
     EmailMessage, DateRange
 )
 from app.services.classifier_service import MerchantClassifier
 from app.services.gmail_service import GmailService
-from app.db.crud import TransactionCrud
-from sqlalchemy.orm import Session
 
 
 class TransactionService:
@@ -158,8 +159,8 @@ class TransactionService:
             logger.error(f"Error processing transaction: {str(e)}")
             return None
 
+    @staticmethod
     def _matches_filters(
-            self,
             transaction: Transaction,
             category: Optional[str],
             subcategory: Optional[str],

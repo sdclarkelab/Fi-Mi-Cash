@@ -1,9 +1,11 @@
 import uuid
 from typing import List, Optional
+
 from sqlalchemy.orm import Session
 
-from app.models.transaction_model import TransactionModel
 from app.models.schemas import Transaction, DateRange
+from app.models.transaction_model import TransactionModel
+
 
 class TransactionCrud:
     @staticmethod
