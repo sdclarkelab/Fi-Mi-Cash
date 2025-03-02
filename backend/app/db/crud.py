@@ -1,9 +1,11 @@
 import uuid
+from datetime import datetime
 from typing import List, Optional
 
 from sqlalchemy.orm import Session
 
 from app.models.schemas import Transaction, DateRange
+from app.models.sync_info_model import SyncInfoModel
 from app.models.transaction_model import TransactionModel
 
 
@@ -74,3 +76,49 @@ class TransactionCrud:
             db.commit()
             db.refresh(transaction)
         return transaction
+
+
+class SyncInfoCrud:
+    @staticmethod
+    def get_last_sync(db: Session) -> Optional[SyncInfoModel]:
+        return db.query(SyncInfoModel).filter(SyncInfoModel.id == "last_sync").first()
+
+    @staticmethod
+    def update_last_sync(db: Session, start_date: Optional[datetime], end_date: Optional[datetime]) -> SyncInfoModel:
+        sync_info = db.query(SyncInfoModel).filter(SyncInfoModel.id == "last_sync").first()
+
+        # Helper function to make datetime objects timezone-naive
+        def to_naive(dt):
+            if dt and dt.tzinfo:
+                return dt.replace(tzinfo=None)
+            return dt
+
+        # Normalize datetime objects
+        start_date = to_naive(start_date)
+        end_date = to_naive(end_date)
+
+        if not sync_info:
+            sync_info = SyncInfoModel(
+                id="last_sync",
+                last_sync_date=datetime.now(),
+                start_date=start_date,
+                end_date=end_date
+            )
+            db.add(sync_info)
+        else:
+            sync_info.last_sync_date = datetime.now()
+
+            # Compare with normalized dates
+            if start_date is not None:
+                last_start = to_naive(sync_info.start_date)
+                if last_start is None or start_date < last_start:
+                    sync_info.start_date = start_date
+
+            if end_date is not None:
+                last_end = to_naive(sync_info.end_date)
+                if last_end is None or end_date > last_end:
+                    sync_info.end_date = end_date
+
+        db.commit()
+        db.refresh(sync_info)
+        return sync_info

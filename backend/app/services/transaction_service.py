@@ -1,13 +1,14 @@
 import re
 import uuid
 from collections import defaultdict
+from datetime import datetime
 from decimal import Decimal
 from typing import List, Optional
 
 from sqlalchemy.orm import Session
 
 from app.core.logger import logger
-from app.db.crud import TransactionCrud
+from app.db.crud import TransactionCrud, SyncInfoCrud
 from app.models.schemas import (
     Transaction, TransactionSummary, CategorySummary,
     EmailMessage, DateRange
@@ -35,8 +36,12 @@ class TransactionService:
             min_confidence: float = 0.0,
             include_excluded: bool = True
     ) -> List[Transaction]:
-        # First sync transactions from emails to database
-        await self._sync_transactions(date_range)
+
+        # Check if we need to sync with Gmail
+        should_sync = await self._should_sync_transactions(date_range)
+
+        if should_sync:
+            await self._sync_transactions(date_range)
 
         # Then retrieve transactions from database with filters
         db_transactions = TransactionCrud.get_transactions(
@@ -60,13 +65,18 @@ class TransactionService:
 
     async def _sync_transactions(self, date_range: Optional[DateRange] = None):
         """Fetch transactions from Gmail and store in SQLite if not already present"""
-        query = self._build_gmail_query(date_range)  # Use date_range parameter
+        query = self._build_gmail_query(date_range)
         emails = self.gmail_service.get_messages(query)
 
         for email in emails:
             transaction = await self._parse_transaction(email)
             if transaction and not TransactionCrud.transaction_exists(self.db, transaction):
                 TransactionCrud.create_transaction(self.db, transaction)
+
+        # Update the sync info
+        start_date = date_range.start_date if date_range else None
+        end_date = date_range.end_date if date_range else None
+        SyncInfoCrud.update_last_sync(self.db, start_date, end_date)
 
     async def get_summary(
             self,
@@ -219,3 +229,38 @@ class TransactionService:
                 excluded=tx.excluded
             )
         return None
+
+    async def _should_sync_transactions(self, date_range: Optional[DateRange] = None) -> bool:
+        """Determine if we need to sync transactions from Gmail"""
+        # Get the last sync info
+        last_sync_info = SyncInfoCrud.get_last_sync(self.db)
+
+        # If no previous sync, we should sync now
+        if not last_sync_info:
+            return True
+
+        # If no specific date range requested, check if we've synced today
+        if not date_range:
+            today = datetime.now().date()
+            return last_sync_info.last_sync_date.date() != today
+
+        # Convert datetime objects to naive before comparison
+        def to_naive(dt):
+            if dt and dt.tzinfo:
+                return dt.replace(tzinfo=None)
+            return dt
+
+        # Get normalized datetime objects
+        start_date = to_naive(date_range.start_date) if date_range.start_date else None
+        end_date = to_naive(date_range.end_date) if date_range.end_date else None
+        last_start = to_naive(last_sync_info.start_date) if last_sync_info.start_date else None
+        last_end = to_naive(last_sync_info.end_date) if last_sync_info.end_date else None
+
+        # Check if requested dates are outside our last sync range
+        if start_date and (not last_start or start_date < last_start):
+            return True
+
+        if end_date and (not last_end or end_date > last_end):
+            return True
+
+        return False
