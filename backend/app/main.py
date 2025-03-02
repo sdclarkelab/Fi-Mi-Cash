@@ -6,6 +6,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.api_v1.endpoints import router as api_router
 from app.config import get_settings
 from app.core.logger import logger
+from app.db.database import engine
+from app.models.transaction_model import Base
 
 settings = get_settings()
 
@@ -15,23 +17,14 @@ async def lifespan(app: FastAPI):
     # Startup
     logger.info("Starting up Transaction API")
 
-    # Your startup code here
-    # For example:
-    # - Initialize database connections
-    # - Set up background tasks
-    # - Initialize cache
-    # - Warm up ML models
+    # Initialize database tables
+    logger.info("Creating database tables if they don't exist")
+    Base.metadata.create_all(bind=engine)
 
     yield
 
     # Shutdown
     logger.info("Shutting down Transaction API")
-    # Your cleanup code here
-    # For example:
-    # - Close database connections
-    # - Stop background tasks
-    # - Clear cache
-    # - Release resources
 
 
 app = FastAPI(
