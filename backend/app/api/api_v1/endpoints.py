@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 from typing import Optional
 
-from fastapi import APIRouter, Depends, Query, HTTPException
+from fastapi import APIRouter, Depends, Query, HTTPException, Body
 
 from app.api.api_v1.dependencies import get_transaction_service
 from app.models.schemas import (
@@ -41,7 +41,7 @@ async def get_transactions(
 @router.patch("/transactions/{transaction_id}/toggle-exclude", response_model=Transaction)
 async def toggle_transaction_exclusion(
         transaction_id: uuid.UUID,
-        excluded: bool,
+        excluded: bool = Body(..., embed=True),
         service: TransactionService = Depends(get_transaction_service)
 ):
     """Toggle whether a transaction is excluded from calculations"""

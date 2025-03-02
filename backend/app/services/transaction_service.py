@@ -83,7 +83,7 @@ class TransactionService:
         primary_categories = defaultdict(lambda: self._empty_category_summary())
         subcategories = defaultdict(lambda: self._empty_category_summary())
 
-        for transaction in transactions:
+        for transaction in included_transactions:
             self._update_category_summary(
                 primary_categories[transaction.primary_category],
                 transaction
@@ -94,12 +94,12 @@ class TransactionService:
             )
 
         return TransactionSummary(
-            total_spending=sum(t.amount for t in transactions),
-            transaction_count=len(transactions),
-            average_transaction=sum(t.amount for t in transactions) / len(transactions),
+            total_spending=sum(t.amount for t in included_transactions),
+            transaction_count=len(included_transactions),
+            average_transaction=sum(t.amount for t in included_transactions) / len(transactions),
             by_primary_category=dict(primary_categories),
             by_subcategory=dict(subcategories),
-            merchants=list(set(t.merchant for t in transactions))
+            merchants=list(set(t.merchant for t in included_transactions))
         )
 
     def _build_gmail_query(self, date_range: Optional[DateRange]) -> str:
