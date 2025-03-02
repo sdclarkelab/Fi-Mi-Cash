@@ -1,3 +1,4 @@
+import uuid
 from datetime import datetime
 from decimal import Decimal
 from typing import List, Optional, Dict
@@ -21,7 +22,7 @@ class MerchantCategory(BaseModel):
 
 
 class Transaction(BaseModel):
-    id: str = Field(default_factory=lambda: str(uuid4()))
+    id: uuid.UUID
     date: datetime
     amount: Decimal = Field(decimal_places=2)
     merchant: str
@@ -29,6 +30,7 @@ class Transaction(BaseModel):
     subcategory: str
     confidence: float = Field(ge=0.0, le=1.0)
     description: str
+    excluded: bool = False
 
     class Config:
         json_encoders = {

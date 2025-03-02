@@ -1,4 +1,4 @@
-# app/db/crud.py
+import uuid
 from typing import List, Optional
 from sqlalchemy.orm import Session
 
@@ -8,7 +8,10 @@ from app.models.schemas import Transaction, DateRange
 class TransactionCrud:
     @staticmethod
     def create_transaction(db: Session, transaction: Transaction) -> TransactionModel:
+        transaction_id = transaction.id if hasattr(transaction, 'id') else uuid.uuid4()
+
         db_transaction = TransactionModel(
+            id=str(transaction_id),
             date=transaction.date,
             amount=transaction.amount,
             merchant=transaction.merchant,
@@ -28,7 +31,8 @@ class TransactionCrud:
             date_range: Optional[DateRange] = None,
             category: Optional[str] = None,
             subcategory: Optional[str] = None,
-            min_confidence: float = 0.0
+            min_confidence: float = 0.0,
+            include_excluded: bool = True
     ) -> List[TransactionModel]:
         query = db.query(TransactionModel)
 
@@ -47,6 +51,9 @@ class TransactionCrud:
         if min_confidence > 0:
             query = query.filter(TransactionModel.confidence >= min_confidence)
 
+        if not include_excluded:
+            query = query.filter(TransactionModel.excluded == False)
+
         return query.all()
 
     @staticmethod
@@ -56,3 +63,12 @@ class TransactionCrud:
             TransactionModel.amount == transaction.amount,
             TransactionModel.merchant == transaction.merchant
         ).first() is not None
+
+    @staticmethod
+    def set_exclusion(db: Session, transaction_id: uuid.UUID, excluded: bool) -> Optional[TransactionModel]:
+        transaction = db.query(TransactionModel).filter(TransactionModel.id == str(transaction_id)).first()
+        if transaction:
+            transaction.excluded = excluded
+            db.commit()
+            db.refresh(transaction)
+        return transaction

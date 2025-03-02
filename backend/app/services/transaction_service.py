@@ -1,4 +1,5 @@
 import re
+import uuid
 from collections import defaultdict
 from decimal import Decimal
 from typing import List, Optional
@@ -30,26 +31,29 @@ class TransactionService:
             date_range: Optional[DateRange] = None,
             category: Optional[str] = None,
             subcategory: Optional[str] = None,
-            min_confidence: float = 0.0
+            min_confidence: float = 0.0,
+            include_excluded: bool = True
     ) -> List[Transaction]:
         # First sync transactions from emails to database
         await self._sync_transactions(date_range)
 
         # Then retrieve transactions from database with filters
         db_transactions = TransactionCrud.get_transactions(
-            self.db, date_range, category, subcategory, min_confidence
+            self.db, date_range, category, subcategory, min_confidence, include_excluded
         )
 
         # Convert DB models to Pydantic models
         return [
             Transaction(
+                id=uuid.UUID(tx.id),
                 date=tx.date,
                 amount=Decimal(str(tx.amount)),
                 merchant=tx.merchant,
                 primary_category=tx.primary_category,
                 subcategory=tx.subcategory,
                 confidence=tx.confidence,
-                description=tx.description
+                description=tx.description,
+                excluded=tx.excluded
             ) for tx in db_transactions
         ]
 
@@ -68,6 +72,11 @@ class TransactionService:
             transactions: List[Transaction]
     ) -> TransactionSummary:
         if not transactions:
+            return self._empty_summary()
+
+        included_transactions = [t for t in transactions if not t.excluded]
+
+        if not included_transactions:
             return self._empty_summary()
 
         primary_categories = defaultdict(lambda: self._empty_category_summary())
@@ -136,6 +145,7 @@ class TransactionService:
             classification = await self.classifier.classify_merchant(merchant)
 
             return Transaction(
+                id=uuid.uuid4(),
                 date=email.date,
                 amount=amount,
                 merchant=merchant,
@@ -191,3 +201,20 @@ class TransactionService:
         summary.average = summary.total / summary.count
         if transaction.merchant not in summary.merchants:
             summary.merchants.append(transaction.merchant)
+
+    async def set_transaction_exclusion(self, transaction_id: uuid.UUID, excluded: bool) -> Optional[Transaction]:
+        """Set the exclusion status of a transaction"""
+        tx = TransactionCrud.set_exclusion(self.db, transaction_id, excluded)
+        if tx:
+            return Transaction(
+                id=uuid.UUID(tx.id),
+                date=tx.date,
+                amount=Decimal(str(tx.amount)),
+                merchant=tx.merchant,
+                primary_category=tx.primary_category,
+                subcategory=tx.subcategory,
+                confidence=tx.confidence,
+                description=tx.description,
+                excluded=tx.excluded
+            )
+        return None
