@@ -58,7 +58,7 @@ class TransactionCrud:
         if not include_excluded:
             query = query.filter(TransactionModel.excluded == False)
 
-        return query.all()
+        return query.order_by(TransactionModel.date.desc()).all()
 
     @staticmethod
     def transaction_exists(db: Session, transaction: Transaction) -> bool:
