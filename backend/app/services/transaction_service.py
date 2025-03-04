@@ -30,7 +30,7 @@ class TransactionService:
 
     async def get_transactions(
             self,
-            date_range: Optional[DateRange] = None,
+            date_range: DateRange,
             category: Optional[str] = None,
             subcategory: Optional[str] = None,
             min_confidence: float = 0.0,
@@ -63,7 +63,7 @@ class TransactionService:
             ) for tx in db_transactions
         ]
 
-    async def _sync_transactions(self, date_range: Optional[DateRange] = None):
+    async def _sync_transactions(self, date_range: DateRange):
         """Fetch transactions from Gmail and store in SQLite if not already present"""
         query = self._build_gmail_query(date_range)
         emails = self.gmail_service.get_messages(query)
@@ -112,14 +112,11 @@ class TransactionService:
             merchants=list(set(t.merchant for t in included_transactions))
         )
 
-    def _build_gmail_query(self, date_range: Optional[DateRange]) -> str:
+    def _build_gmail_query(self, date_range: DateRange) -> str:
         query = 'from:no-reply-ncbcardalerts@jncb.com'
 
-        if date_range:
-            if date_range.start_date:
-                query += f' after:{int(date_range.start_date.timestamp())}'
-            if date_range.end_date:
-                query += f' before:{int(date_range.end_date.timestamp())}'
+        query += f' after:{int(date_range.start_date.timestamp())}'
+        query += f' before:{int(date_range.end_date.timestamp())}'
 
         query += ' "Transaction Approved" ("NCB VISA PLATINUM" OR "MASTERCARD PLATINUM USD")'
         return query
@@ -230,7 +227,7 @@ class TransactionService:
             )
         return None
 
-    async def _should_sync_transactions(self, date_range: Optional[DateRange] = None) -> bool:
+    async def _should_sync_transactions(self, date_range: DateRange = None) -> bool:
         """Determine if we need to sync transactions from Gmail"""
         # Get the last sync info
         last_sync_info = SyncInfoCrud.get_last_sync(self.db)
