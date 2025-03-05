@@ -53,12 +53,15 @@ async def toggle_transaction_exclusion(
 
 @router.get("/categories")
 async def get_categories(
+        start_date: Optional[datetime] = Query(None, alias="startDate"),
+        end_date: Optional[datetime] = Query(None, alias="endDate"),
         service: TransactionService = Depends(get_transaction_service)
 ):
     """
     Get all available transaction categories.
     """
-    transactions = await service.get_transactions()
+    date_range = DateRange(start_date=start_date, end_date=end_date)
+    transactions = await service.get_transactions(date_range)
     categories = {}
 
     for transaction in transactions:
