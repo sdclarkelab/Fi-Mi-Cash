@@ -112,7 +112,8 @@ class TransactionService:
             merchants=list(set(t.merchant for t in included_transactions))
         )
 
-    def _build_gmail_query(self, date_range: DateRange) -> str:
+    @staticmethod
+    def _build_gmail_query(date_range: DateRange) -> str:
         query = 'from:no-reply-ncbcardalerts@jncb.com'
 
         query += f' after:{int(date_range.start_date.timestamp())}'

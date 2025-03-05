@@ -39,34 +39,10 @@ export const fetchTransactions = async ({
     if (typeof minConfidence === "number")
       params.append("min_confidence", minConfidence.toString());
 
-    const { data } = await api.get(`/transactions/?${params.toString()}`);
+    const { data } = await api.get(`/transactions?${params.toString()}`);
     return data;
   } catch (error) {
     throw new Error(`Failed to fetch transactions: ${error.message}`);
-  }
-};
-
-export const fetchCategories = async ({ startDate, endDate } = {}) => {
-  try {
-    const params = new URLSearchParams();
-
-    // Ensure we have proper Date objects and convert to ISO string
-    if (startDate) {
-      const startDateObj =
-        startDate instanceof Date ? startDate : new Date(startDate);
-      params.append("startDate", startDateObj.toISOString());
-    }
-
-    if (endDate) {
-      const endDateObj = endDate instanceof Date ? endDate : new Date(endDate);
-      params.append("endDate", endDateObj.toISOString());
-    }
-
-    console.log("Fetching categories with params:", params.toString());
-    const { data } = await api.get(`/categories?${params.toString()}`);
-    return data;
-  } catch (error) {
-    throw new Error(`Failed to fetch categories: ${error.message}`);
   }
 };
 
