@@ -39,7 +39,7 @@ export const fetchTransactions = async ({
     if (typeof minConfidence === "number")
       params.append("min_confidence", minConfidence.toString());
 
-    const { data } = await api.get(`/transactions/?${params.toString()}`);
+    const { data } = await api.get(`/transactions?${params.toString()}`);
     return data;
   } catch (error) {
     throw new Error(`Failed to fetch transactions: ${error.message}`);
