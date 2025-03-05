@@ -66,3 +66,4 @@ class DateRange(BaseModel):
 class TransactionList(BaseModel):
     transaction_summary: TransactionSummary
     transactions: List[Transaction]
+    categories: Dict[str, List[str]]

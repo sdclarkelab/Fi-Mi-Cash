@@ -35,7 +35,16 @@ async def get_transactions(
     )
 
     summary = await service.get_summary(transactions)
-    return TransactionList(transactions=transactions, transaction_summary=summary)
+
+    # Extract categories from transactions
+    categories = {}
+    for transaction in transactions:
+        if transaction.primary_category not in categories:
+            categories[transaction.primary_category] = []
+        if transaction.subcategory not in categories[transaction.primary_category]:
+            categories[transaction.primary_category].append(transaction.subcategory)
+
+    return TransactionList(transactions=transactions, transaction_summary=summary, categories=categories)
 
 
 @router.patch("/transactions/{transaction_id}/toggle-exclude", response_model=Transaction)
