@@ -1,23 +1,16 @@
 import React, { useState } from "react";
-import { useTransactionData } from "../hooks/useTransactionData";
 import { formatCurrency, formatDate } from "../utils/formatters";
-import { useDateRange } from "../context/DateRangeContext";
 import { useTransactionContext } from "../context/TransactionContext";
 import LoadingSpinner from "./LoadingSpinner";
 import ErrorAlert from "./ErrorAlert";
 import { toggleTransactionExclusion as apiToggleExclusion } from "../services/api";
 
 const TransactionList = () => {
-  const { appliedDateRange } = useDateRange();
-  const { filters } = useTransactionContext();
+  const { filters, transactionData, isLoading, error, refetch } =
+    useTransactionContext();
   const [updatingTransactionId, setUpdatingTransactionId] = useState(null);
 
-  const { data, isLoading, error, isFetching, refetch } = useTransactionData(
-    filters,
-    appliedDateRange
-  );
-
-  const transactions = data?.transactions || [];
+  const transactions = transactionData?.transactions || [];
 
   const toggleTransactionExclusion = async (transactionId, currentExcluded) => {
     try {
@@ -77,13 +70,6 @@ const TransactionList = () => {
   return (
     <div className="mt-8">
       <div className="relative">
-        {/* Loading overlay for subsequent fetches */}
-        {isFetching && !isLoading && (
-          <div className="absolute inset-0 bg-white/50 flex items-center justify-center z-10">
-            <LoadingSpinner />
-          </div>
-        )}
-
         {/* Table Header */}
         <div className="sm:flex sm:items-center mb-4">
           <div className="sm:flex-auto">

@@ -1,4 +1,7 @@
 import React, { createContext, useContext, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { fetchTransactions } from "../services/api";
+import { transactionQueryKey } from "../hooks/useTransactionData";
 
 const TransactionContext = createContext();
 
@@ -13,6 +16,27 @@ export const TransactionProvider = ({ children }) => {
     subcategory: null,
     startDate: startDate,
     endDate: endDate,
+  });
+
+  // Fetch transaction data to be shared across components
+  const {
+    data: transactionData,
+    isLoading,
+    error,
+    refetch,
+  } = useQuery({
+    queryKey: transactionQueryKey(filters, {
+      startDate: filters.startDate,
+      endDate: filters.endDate,
+    }),
+    queryFn: () =>
+      fetchTransactions({
+        ...filters,
+        startDate: filters.startDate,
+        endDate: filters.endDate,
+      }),
+    keepPreviousData: true,
+    enabled: !!filters.startDate && !!filters.endDate,
   });
 
   const updateFilters = (category, subcategory = null) => {
@@ -37,6 +61,10 @@ export const TransactionProvider = ({ children }) => {
         filters,
         updateFilters,
         updateDateRange,
+        transactionData,
+        isLoading,
+        error,
+        refetch,
       }}
     >
       {children}

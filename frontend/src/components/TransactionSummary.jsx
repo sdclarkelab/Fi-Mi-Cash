@@ -1,24 +1,17 @@
 import React from "react";
-import { useTransactionData } from "../hooks/useTransactionData";
 import { formatCurrency } from "../utils/formatters";
-import { useDateRange } from "../context/DateRangeContext";
 import { useTransactionContext } from "../context/TransactionContext";
 import LoadingSpinner from "./LoadingSpinner";
 import ErrorAlert from "./ErrorAlert";
 
 const TransactionSummary = () => {
-  const { appliedDateRange } = useDateRange();
-  const { filters } = useTransactionContext();
-
-  const { data, isLoading, error, refetch } = useTransactionData(
-    filters,
-    appliedDateRange
-  );
+  const { transactionData, isLoading, error, refetch } =
+    useTransactionContext();
 
   if (isLoading) return <LoadingSpinner />;
   if (error) return <ErrorAlert error={error} onRetry={refetch} />;
 
-  const summary = data?.transaction_summary;
+  const summary = transactionData?.transaction_summary;
   if (!summary) return null;
 
   return (

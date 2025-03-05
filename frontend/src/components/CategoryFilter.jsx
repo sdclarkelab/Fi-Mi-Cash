@@ -1,33 +1,11 @@
-import React, { useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { fetchCategories } from "../services/api";
+import React from "react";
 import { Menu } from "@headlessui/react";
 import { HiChevronDown } from "react-icons/hi";
 import { useTransactionContext } from "../context/TransactionContext";
 
 const CategoryFilter = () => {
-  const { filters, updateFilters } = useTransactionContext();
-
-  const { data: categories, isLoading } = useQuery({
-    queryKey: [
-      "categories",
-      filters.startDate?.toISOString(),
-      filters.endDate?.toISOString(),
-    ],
-    queryFn: () =>
-      fetchCategories({
-        startDate: filters.startDate,
-        endDate: filters.endDate,
-      }),
-  });
-
-  // Debug log to verify dates are being passed
-  useEffect(() => {
-    console.log("Category filter using dates:", {
-      startDate: filters.startDate,
-      endDate: filters.endDate,
-    });
-  }, [filters.startDate, filters.endDate]);
+  const { filters, updateFilters, transactionData, isLoading } =
+    useTransactionContext();
 
   const getDisplayText = () => {
     if (filters.category && filters.subcategory) {
@@ -44,6 +22,9 @@ const CategoryFilter = () => {
   };
 
   if (isLoading) return null;
+
+  // Extract categories from transaction data
+  const categories = transactionData?.categories || {};
 
   return (
     <div className="relative">
@@ -75,51 +56,45 @@ const CategoryFilter = () => {
                   )}
                 </Menu.Item>
 
-                {Object.entries(categories || {}).map(
-                  ([category, subcategories]) => (
-                    <div key={category} className="category-group">
-                      <Menu.Item>
+                {Object.entries(categories).map(([category, subcategories]) => (
+                  <div key={category} className="category-group">
+                    <Menu.Item>
+                      {({ active }) => (
+                        <button
+                          className={`${
+                            active
+                              ? "bg-gray-100 text-gray-900"
+                              : "text-gray-700"
+                          } w-full text-left px-4 py-2 text-sm font-medium border-l-4 ${
+                            active ? "border-blue-500" : "border-transparent"
+                          }`}
+                          onClick={() => updateFilters(category)}
+                        >
+                          {category}
+                        </button>
+                      )}
+                    </Menu.Item>
+
+                    {subcategories.map((subcategory) => (
+                      <Menu.Item key={`${category}-${subcategory}`}>
                         {({ active }) => (
                           <button
                             className={`${
                               active
                                 ? "bg-gray-100 text-gray-900"
-                                : "text-gray-700"
-                            } w-full text-left px-4 py-2 text-sm font-medium border-l-4 ${
-                              active ? "border-blue-500" : "border-transparent"
+                                : "text-gray-600"
+                            } w-full text-left px-8 py-2 text-sm border-l-4 ${
+                              active ? "border-blue-300" : "border-transparent"
                             }`}
-                            onClick={() => updateFilters(category)}
+                            onClick={() => updateFilters(category, subcategory)}
                           >
-                            {category}
+                            {subcategory}
                           </button>
                         )}
                       </Menu.Item>
-
-                      {subcategories.map((subcategory) => (
-                        <Menu.Item key={`${category}-${subcategory}`}>
-                          {({ active }) => (
-                            <button
-                              className={`${
-                                active
-                                  ? "bg-gray-100 text-gray-900"
-                                  : "text-gray-600"
-                              } w-full text-left px-8 py-2 text-sm border-l-4 ${
-                                active
-                                  ? "border-blue-300"
-                                  : "border-transparent"
-                              }`}
-                              onClick={() =>
-                                updateFilters(category, subcategory)
-                              }
-                            >
-                              {subcategory}
-                            </button>
-                          )}
-                        </Menu.Item>
-                      ))}
-                    </div>
-                  )
-                )}
+                    ))}
+                  </div>
+                ))}
               </div>
             </Menu.Items>
           </>
