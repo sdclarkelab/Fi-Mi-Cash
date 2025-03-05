@@ -76,10 +76,7 @@ class MerchantClassifier:
         
         1. Food & Dining
            - Restaurants (sit-down, fast food, takeout)
-           - Cafes & Bakeries
            - Groceries & Supermarkets
-           - Specialty Food Stores
-           - Delivery Services
         
         2. Shopping & Retail
            - Clothing & Apparel
@@ -153,7 +150,7 @@ class MerchantClassifier:
         
         ## SPECIAL CLASSIFICATION RULES
         
-        - Cafes serving primarily beverages should be classified as "Food & Dining" > "Cafes & Bakeries"
+        - Cafes serving primarily beverages should be classified as "Food & Dining" > "Restaurants"
         - Cafes serving full meals should be classified as "Food & Dining" > "Restaurants"
         - Wholesale clubs (like Pricesmart) should be classified as "Food & Dining" > "Groceries & Supermarkets"
         - HI-LO should be classified as "Food & Dining" > "Groceries & Supermarkets"
