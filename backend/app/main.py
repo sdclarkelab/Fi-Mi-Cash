@@ -3,7 +3,8 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.api_v1.endpoints import router as api_router
+from app.api.api_v1.routers.category_rules_router import router as category_rules_router
+from app.api.api_v1.routers.transactions_router import router as transactions_router
 from app.config import get_settings
 from app.core.logger import logger
 from app.db.base_class import Base
@@ -43,7 +44,8 @@ app.add_middleware(
 )
 
 # Include API router
-app.include_router(api_router, prefix=settings.API_V1_STR)
+app.include_router(transactions_router, prefix=settings.API_V1_STR)
+app.include_router(category_rules_router, prefix=settings.API_V1_STR)
 
 if __name__ == "__main__":
     import uvicorn

@@ -77,6 +77,23 @@ class TransactionCrud:
             db.refresh(transaction)
         return transaction
 
+    # app/crud/transaction.py
+    @staticmethod
+    def update_transactions_by_merchant(db: Session, merchant: str, category: str, subcategory: str):
+        """Update the classification of all transactions with matching merchant name"""
+        try:
+            updated_count = db.query(TransactionModel).filter(
+                TransactionModel.merchant == merchant
+            ).update({
+                "primary_category": category,
+                "subcategory": subcategory
+            })
+            db.commit()
+            return updated_count
+        except Exception as e:
+            db.rollback()
+            return 0
+
 
 class SyncInfoCrud:
     @staticmethod
