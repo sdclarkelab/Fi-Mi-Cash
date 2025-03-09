@@ -1,5 +1,8 @@
 import asyncio
 import json
+import os
+from pathlib import Path
+from typing import List, Dict, Optional
 
 import openai
 from cachetools import TTLCache
@@ -12,6 +15,109 @@ from app.models.schemas import MerchantCategory
 settings = get_settings()
 
 
+class SpecialClassificationRuleManager:
+    """Manager for merchant classification rules with JSON persistence."""
+
+    def __init__(self, rules_file_path: Optional[str] = None):
+        self.rules_file = Path(rules_file_path or os.path.join(
+            os.path.dirname(__file__), "../data/classification_rules.json"))
+        self._rules = []
+        self._load_rules()
+
+    def _load_rules(self) -> None:
+        """Load rules from the JSON file."""
+        try:
+            if self.rules_file.exists():
+                with open(self.rules_file, 'r') as f:
+                    data = json.load(f)
+                    self._rules = data.get("special_rules", [])
+            else:
+                # Create file with default rules if it doesn't exist
+                self._rules = self._get_default_rules()
+                self._save_rules()
+        except Exception as e:
+            logger.error(f"Failed to load classification rules: {str(e)}")
+            self._rules = self._get_default_rules()
+
+    def _save_rules(self) -> None:
+        """Save rules to the JSON file."""
+        try:
+            # Ensure directory exists
+            self.rules_file.parent.mkdir(parents=True, exist_ok=True)
+            with open(self.rules_file, 'w') as f:
+                json.dump({"special_rules": self._rules}, f, indent=2)
+        except Exception as e:
+            logger.error(f"Failed to save classification rules: {str(e)}")
+
+    def _get_default_rules(self) -> List[Dict[str, str]]:
+        """Return default classification rules."""
+        return [
+            {"merchant": "Cafes serving primarily beverages", "category": "Food & Dining",
+             "subcategory": "Restaurants"},
+            {"merchant": "Cafes serving full meals", "category": "Food & Dining", "subcategory": "Restaurants"},
+            {"merchant": "Wholesale clubs (like Pricesmart)", "category": "Food & Dining",
+             "subcategory": "Groceries & Supermarkets"},
+            {"merchant": "HI-LO", "category": "Food & Dining", "subcategory": "Groceries & Supermarkets"},
+            {"merchant": "DIGP", "category": "Services", "subcategory": "Utilities"},
+            {"merchant": "NWCJ", "category": "Services", "subcategory": "Utilities"},
+            {"merchant": "FONTANA -WATERLOO SQUARE", "category": "Health & Wellness", "subcategory": "Pharmacies"},
+            {"merchant": "JOHN R WONG SUPERMARKET", "category": "Food & Dining", "subcategory": "Restaurants"},
+            {"merchant": "USAIN BOLT'S TRACKS AND R", "category": "Food & Dining", "subcategory": "Restaurants"}
+        ]
+
+    def get_all_rules(self) -> List[Dict[str, str]]:
+        """Return all special classification rules."""
+        return self._rules.copy()
+
+    def add_rule(self, merchant: str, category: str, subcategory: str) -> bool:
+        """Add a new special classification rule."""
+        # Check if rule already exists
+        for rule in self._rules:
+            if rule["merchant"].lower() == merchant.lower():
+                return False
+
+        self._rules.append({
+            "merchant": merchant,
+            "category": category,
+            "subcategory": subcategory
+        })
+        self._save_rules()
+        return True
+
+    def edit_rule(self, merchant: str, category: str, subcategory: str) -> bool:
+        """Edit an existing special classification rule."""
+        for i, rule in enumerate(self._rules):
+            if rule["merchant"].lower() == merchant.lower():
+                self._rules[i] = {
+                    "merchant": merchant,
+                    "category": category,
+                    "subcategory": subcategory
+                }
+                self._save_rules()
+                return True
+        return False
+
+    def delete_rule(self, merchant: str) -> bool:
+        """Delete a special classification rule."""
+        for i, rule in enumerate(self._rules):
+            if rule["merchant"].lower() == merchant.lower():
+                self._rules.pop(i)
+                self._save_rules()
+                return True
+        return False
+
+    def format_rules_for_prompt(self) -> str:
+        """Format rules for inclusion in the classification prompt."""
+        rules_text = "\n\n## SPECIAL CLASSIFICATION RULES\n\n"
+        for rule in self._rules:
+            rules_text += f"- {rule['merchant']} should be classified as \"{rule['category']}\" > \"{rule['subcategory']}\"\n"
+
+        # Add the special rule about unclear merchant names
+        rules_text += "- Transactions with abbreviated or unclear merchant names should be classified based on available context clues with lower confidence scores\n"
+
+        return rules_text
+
+
 class MerchantClassifier:
     def __init__(self):
         self.client = openai.Client(api_key=settings.OPENAI_API_KEY)
@@ -19,6 +125,7 @@ class MerchantClassifier:
             maxsize=settings.CACHE_MAX_SIZE,
             ttl=settings.CACHE_TTL
         )
+        self.rule_manager = SpecialClassificationRuleManager()
 
     async def classify_merchant(self, merchant_name: str) -> MerchantCategory:
         cache_key = merchant_name.lower()
@@ -69,7 +176,7 @@ class MerchantClassifier:
             raise ClassificationError(f"Invalid classification format: {str(e)}")
 
     def _get_classification_prompt(self) -> str:
-        return """
+        base_prompt = """
         You are a merchant classification expert with detailed knowledge of business categories across multiple industries. Your task is to analyze merchant names and classify them into the most appropriate category and subcategory with high accuracy.
 
         ## PRIMARY CATEGORIES AND SUBCATEGORIES
@@ -148,18 +255,6 @@ class MerchantClassifier:
             - Membership Organizations
             - Uncategorized
         
-        ## SPECIAL CLASSIFICATION RULES
-        
-        - Cafes serving primarily beverages should be classified as "Food & Dining" > "Restaurants"
-        - Cafes serving full meals should be classified as "Food & Dining" > "Restaurants"
-        - Wholesale clubs (like Pricesmart) should be classified as "Food & Dining" > "Groceries & Supermarkets"
-        - HI-LO should be classified as "Food & Dining" > "Groceries & Supermarkets"
-        - DIGP and NWCJ should be classified as "Services" > "Utilities"
-        - FONTANA -WATERLOO SQUARE should be classified as "Health & Wellness" > "Pharmacies"
-        - JOHN R WONG SUPERMARKET should be classified as "Food & Dining" > "Restaurants"
-        - USAIN BOLT'S TRACKS AND R should be classified as "Food & Dining" > "Restaurants"
-        - Transactions with abbreviated or unclear merchant names should be classified based on available context clues with lower confidence scores
-        
         ## CONFIDENCE SCORING GUIDELINES
         
         - 0.9-1.0: Nearly certain classification with exact matches to known merchants
@@ -188,3 +283,5 @@ class MerchantClassifier:
         5. Use the most specific subcategory possible that accurately reflects the merchant type
 
         """
+
+        return base_prompt + self.rule_manager.format_rules_for_prompt()

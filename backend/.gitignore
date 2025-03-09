@@ -64,3 +64,5 @@ site/
 # Backup files
 *.bak
 *~
+
+/app/data/classification_rules.json

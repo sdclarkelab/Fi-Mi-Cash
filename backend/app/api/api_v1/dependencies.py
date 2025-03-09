@@ -29,3 +29,13 @@ async def get_transaction_service(
         classifier=classifier,
         db=db
     )
+
+
+_classifier = None
+
+
+def get_classifier():
+    global _classifier
+    if _classifier is None:
+        _classifier = MerchantClassifier()
+    return _classifier

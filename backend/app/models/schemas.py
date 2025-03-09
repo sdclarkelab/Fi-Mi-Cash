@@ -67,3 +67,17 @@ class TransactionList(BaseModel):
     transaction_summary: TransactionSummary
     transactions: List[Transaction]
     categories: Dict[str, List[str]]
+
+
+class ClassificationRule(BaseModel):
+    merchant: str
+    category: str
+    subcategory: str
+
+
+class ClassificationRuleResponse(ClassificationRule):
+    success: bool
+
+
+class ClassificationRulesResponse(BaseModel):
+    rules: list[ClassificationRule]
