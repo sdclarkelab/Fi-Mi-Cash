@@ -262,3 +262,10 @@ class TransactionService:
             return True
 
         return False
+
+    def update_category(self, merchant: str, category: str, subcategory: str) -> bool:
+        """Update the category for a merchant"""
+        updated_count = TransactionCrud.update_transactions_by_merchant(
+            self.db, merchant, category, subcategory
+        )
+        return updated_count > 0

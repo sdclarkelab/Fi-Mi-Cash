@@ -2,9 +2,10 @@ from urllib.parse import unquote
 
 from fastapi import APIRouter, Depends, HTTPException, Path
 
-from app.api.api_v1.dependencies import get_classifier
+from app.api.api_v1.dependencies import get_classifier, get_transaction_service
 from app.models.schemas import ClassificationRule, ClassificationRuleResponse, ClassificationRulesResponse
 from app.services.classifier_service import MerchantClassifier
+from app.services.transaction_service import TransactionService
 
 router = APIRouter(prefix="/rules", tags=["rules"])
 
@@ -17,7 +18,8 @@ async def get_all_rules(classifier: MerchantClassifier = Depends(get_classifier)
 
 
 @router.post("", response_model=ClassificationRuleResponse)
-async def add_rule(rule: ClassificationRule, classifier: MerchantClassifier = Depends(get_classifier)):
+async def add_rule(rule: ClassificationRule, classifier: MerchantClassifier = Depends(get_classifier),
+                   transaction_service: TransactionService = Depends(get_transaction_service)):
     """Add a new special classification rule."""
     success = classifier.rule_manager.add_rule(
         merchant=rule.merchant,
@@ -26,6 +28,8 @@ async def add_rule(rule: ClassificationRule, classifier: MerchantClassifier = De
     )
     if not success:
         raise HTTPException(status_code=409, detail=f"Rule for '{rule.merchant}' already exists")
+
+    transaction_service.update_category(merchant=rule.merchant, category=rule.category, subcategory=rule.subcategory)
 
     return ClassificationRuleResponse(
         merchant=rule.merchant,
@@ -36,7 +40,8 @@ async def add_rule(rule: ClassificationRule, classifier: MerchantClassifier = De
 
 
 @router.put("", response_model=ClassificationRuleResponse)
-async def update_rule(rule: ClassificationRule, classifier: MerchantClassifier = Depends(get_classifier)):
+async def update_rule(rule: ClassificationRule, classifier: MerchantClassifier = Depends(get_classifier),
+                      transaction_service: TransactionService = Depends(get_transaction_service)):
     """Update an existing special classification rule."""
     success = classifier.rule_manager.edit_rule(
         merchant=rule.merchant,
@@ -45,6 +50,8 @@ async def update_rule(rule: ClassificationRule, classifier: MerchantClassifier =
     )
     if not success:
         raise HTTPException(status_code=404, detail=f"Rule for '{rule.merchant}' not found")
+
+    transaction_service.update_category(merchant=rule.merchant, category=rule.category, subcategory=rule.subcategory)
 
     return ClassificationRuleResponse(
         merchant=rule.merchant,
