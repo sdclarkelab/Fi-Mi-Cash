@@ -4,13 +4,17 @@ import { useTransactionContext } from "../context/TransactionContext";
 import LoadingSpinner from "./LoadingSpinner";
 import ErrorAlert from "./ErrorAlert";
 import { toggleTransactionExclusion as apiToggleExclusion } from "../services/api";
+import CategoryEditModal from "./CategoryEditModal";
 
 const TransactionList = () => {
   const { filters, transactionData, isLoading, error, refetch } =
     useTransactionContext();
   const [updatingTransactionId, setUpdatingTransactionId] = useState(null);
+  const [editingTransaction, setEditingTransaction] = useState(null);
+  const [isCategoryModalOpen, setCategoryModalOpen] = useState(false);
 
   const transactions = transactionData?.transactions || [];
+  const categories = transactionData?.categories || {};
 
   const toggleTransactionExclusion = async (transactionId, currentExcluded) => {
     try {
@@ -21,6 +25,29 @@ const TransactionList = () => {
       console.error(error.message);
     } finally {
       setUpdatingTransactionId(null);
+    }
+  };
+
+  const handleEditCategory = (transaction) => {
+    setEditingTransaction(transaction);
+    setCategoryModalOpen(true);
+  };
+
+  const handleCategoryUpdate = async (
+    transactionId,
+    category,
+    subcategory,
+    createRule
+  ) => {
+    try {
+      // This would call a new API endpoint to update a transaction's category
+      // We don't have this function yet, but it would be something like:
+      // await updateTransactionCategory(transactionId, category, subcategory);
+
+      // For now, just refetch data to get changes applied by the rule
+      await refetch();
+    } catch (error) {
+      console.error("Failed to update transaction category:", error);
     }
   };
 
@@ -122,9 +149,9 @@ const TransactionList = () => {
                   </th>
                   <th
                     scope="col"
-                    className="px-3 py-3.5 text-center text-sm font-semibold text-gray-900"
+                    className="px-3 py-3.5 text-center text-sm font-semibold text-gray-900 w-24"
                   >
-                    Status
+                    Actions
                   </th>
                 </tr>
               </thead>
@@ -145,9 +172,28 @@ const TransactionList = () => {
                     </td>
                     <td className="px-3 py-4 text-sm text-gray-900">
                       <div className="flex flex-col gap-1">
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                          {transaction.primary_category}
-                        </span>
+                        <button
+                          onClick={() => handleEditCategory(transaction)}
+                          className="text-left"
+                        >
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 hover:bg-blue-200">
+                            {transaction.primary_category}
+                            <svg
+                              className="ml-1.5 h-3 w-3"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                              xmlns="http://www.w3.org/2000/svg"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth="2"
+                                d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
+                              ></path>
+                            </svg>
+                          </span>
+                        </button>
                         {transaction.subcategory && (
                           <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
                             {transaction.subcategory}
@@ -177,50 +223,57 @@ const TransactionList = () => {
                       </div>
                     </td>
                     <td className="whitespace-nowrap px-3 py-4 text-sm text-center">
-                      <button
-                        onClick={() =>
-                          toggleTransactionExclusion(
-                            transaction.id,
+                      <div className="flex space-x-2 justify-center">
+                        <button
+                          onClick={() =>
+                            toggleTransactionExclusion(
+                              transaction.id,
+                              transaction.excluded
+                            )
+                          }
+                          disabled={updatingTransactionId === transaction.id}
+                          className={`px-3 py-1 rounded-md text-xs font-medium ${
                             transaction.excluded
-                          )
-                        }
-                        disabled={updatingTransactionId === transaction.id}
-                        className={`px-3 py-1 rounded-md text-sm font-medium ${
-                          transaction.excluded
-                            ? "bg-red-100 text-red-800 hover:bg-red-200"
-                            : "bg-green-100 text-green-800 hover:bg-green-200"
-                        }`}
-                      >
-                        {updatingTransactionId === transaction.id ? (
-                          <span className="inline-flex items-center">
-                            <svg
-                              className="animate-spin -ml-1 mr-2 h-4 w-4 text-current"
-                              xmlns="http://www.w3.org/2000/svg"
-                              fill="none"
-                              viewBox="0 0 24 24"
-                            >
-                              <circle
-                                className="opacity-25"
-                                cx="12"
-                                cy="12"
-                                r="10"
-                                stroke="currentColor"
-                                strokeWidth="4"
-                              ></circle>
-                              <path
-                                className="opacity-75"
-                                fill="currentColor"
-                                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                              ></path>
-                            </svg>
-                            Updating...
-                          </span>
-                        ) : transaction.excluded ? (
-                          "Excluded"
-                        ) : (
-                          "Include"
-                        )}
-                      </button>
+                              ? "bg-red-100 text-red-800 hover:bg-red-200"
+                              : "bg-green-100 text-green-800 hover:bg-green-200"
+                          }`}
+                          title={
+                            transaction.excluded
+                              ? "Add to budget"
+                              : "Remove from budget"
+                          }
+                        >
+                          {updatingTransactionId === transaction.id ? (
+                            <span className="inline-flex items-center">
+                              <svg
+                                className="animate-spin -ml-1 mr-1 h-3 w-3 text-current"
+                                xmlns="http://www.w3.org/2000/svg"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                              >
+                                <circle
+                                  className="opacity-25"
+                                  cx="12"
+                                  cy="12"
+                                  r="10"
+                                  stroke="currentColor"
+                                  strokeWidth="4"
+                                ></circle>
+                                <path
+                                  className="opacity-75"
+                                  fill="currentColor"
+                                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                                ></path>
+                              </svg>
+                              ...
+                            </span>
+                          ) : transaction.excluded ? (
+                            "Excluded"
+                          ) : (
+                            "Include"
+                          )}
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -229,6 +282,15 @@ const TransactionList = () => {
           </div>
         </div>
       </div>
+
+      {/* Category Edit Modal */}
+      <CategoryEditModal
+        isOpen={isCategoryModalOpen}
+        onClose={() => setCategoryModalOpen(false)}
+        transaction={editingTransaction}
+        categories={categories}
+        onSuccess={handleCategoryUpdate}
+      />
     </div>
   );
 };
