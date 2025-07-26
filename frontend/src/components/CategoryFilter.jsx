@@ -1,6 +1,6 @@
 import React from "react";
 import { Menu } from "@headlessui/react";
-import { HiChevronDown } from "react-icons/hi";
+import { HiChevronDown, HiCheck } from "react-icons/hi";
 import { useTransactionContext } from "../context/TransactionContext";
 
 const CategoryFilter = () => {
@@ -39,60 +39,96 @@ const CategoryFilter = () => {
               />
             </Menu.Button>
 
-            <Menu.Items className="absolute right-0 mt-2 w-64 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 focus:outline-none z-50">
+            <Menu.Items className="absolute right-0 mt-2 w-72 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 focus:outline-none z-50">
               <div className="py-1 max-h-96 overflow-auto">
+                {/* All Categories Option */}
                 <Menu.Item>
                   {({ active }) => (
                     <button
                       className={`${
-                        active ? "bg-gray-100 text-gray-900" : "text-gray-700"
-                      } w-full text-left px-4 py-2 text-sm font-medium border-l-4 ${
-                        active ? "border-blue-500" : "border-transparent"
+                        active ? "bg-blue-50 text-blue-900" : "text-gray-700"
+                      } w-full text-left px-4 py-3 text-sm font-medium flex items-center justify-between group ${
+                        !filters.category ? "bg-blue-50 border-l-4 border-blue-500 text-blue-900" : ""
                       }`}
                       onClick={clearCategoryFilter}
                     >
-                      All Categories
+                      <span className="flex items-center">
+                        <span className="w-2 h-2 bg-gray-400 rounded-full mr-3"></span>
+                        All Categories
+                      </span>
+                      {!filters.category && (
+                        <HiCheck className="w-4 h-4 text-blue-600" />
+                      )}
                     </button>
                   )}
                 </Menu.Item>
 
+                {/* Category Groups */}
                 {Object.entries(categories).map(([category, subcategories]) => (
-                  <div key={category} className="category-group">
+                  <div key={category} className="category-group border-b border-gray-100 last:border-b-0">
+                    {/* Category Group Header */}
+                    <div className="bg-gray-50 px-3 py-2 border-b border-gray-200">
+                      <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                        {category}
+                        <span className="text-gray-400 font-normal ml-2">
+                          ({subcategories.length + 1} options)
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Primary Category Button */}
                     <Menu.Item>
                       {({ active }) => (
                         <button
                           className={`${
-                            active
-                              ? "bg-gray-100 text-gray-900"
-                              : "text-gray-700"
-                          } w-full text-left px-4 py-2 text-sm font-medium border-l-4 ${
-                            active ? "border-blue-500" : "border-transparent"
+                            active ? "bg-blue-50 text-blue-900" : "text-gray-700"
+                          } w-full text-left px-4 py-2.5 text-sm font-medium flex items-center justify-between group ${
+                            filters.category === category && !filters.subcategory 
+                              ? "bg-blue-50 border-l-4 border-blue-500 text-blue-900" 
+                              : ""
                           }`}
                           onClick={() => updateFilters(category)}
                         >
-                          {category}
+                          <span className="flex items-center">
+                            <span className="w-3 h-3 bg-blue-500 rounded-sm mr-3 flex-shrink-0"></span>
+                            <span className="font-medium">{category}</span>
+                          </span>
+                          {filters.category === category && !filters.subcategory && (
+                            <HiCheck className="w-4 h-4 text-blue-600" />
+                          )}
                         </button>
                       )}
                     </Menu.Item>
 
-                    {subcategories.map((subcategory) => (
-                      <Menu.Item key={`${category}-${subcategory}`}>
-                        {({ active }) => (
-                          <button
-                            className={`${
-                              active
-                                ? "bg-gray-100 text-gray-900"
-                                : "text-gray-600"
-                            } w-full text-left px-8 py-2 text-sm border-l-4 ${
-                              active ? "border-blue-300" : "border-transparent"
-                            }`}
-                            onClick={() => updateFilters(category, subcategory)}
-                          >
-                            {subcategory}
-                          </button>
-                        )}
-                      </Menu.Item>
-                    ))}
+                    {/* Subcategories with better visual distinction */}
+                    <div className="bg-white">
+                      {subcategories.map((subcategory) => (
+                        <Menu.Item key={`${category}-${subcategory}`}>
+                          {({ active }) => (
+                            <button
+                              className={`${
+                                active ? "bg-gray-50 text-gray-900" : "text-gray-600"
+                              } w-full text-left px-4 py-2 text-sm hover:bg-gray-50 hover:text-gray-900 flex items-center justify-between group ${
+                                filters.category === category && filters.subcategory === subcategory
+                                  ? "bg-blue-50 border-l-4 border-blue-300 text-blue-900"
+                                  : "border-l-4 border-transparent"
+                              }`}
+                              onClick={() => updateFilters(category, subcategory)}
+                            >
+                              <span className="flex items-center">
+                                <span className="w-6 flex justify-center mr-2">
+                                  <span className="w-1.5 h-1.5 bg-gray-400 rounded-full"></span>
+                                </span>
+                                <span>{subcategory}</span>
+                              </span>
+                              {filters.category === category && filters.subcategory === subcategory && (
+                                <HiCheck className="w-4 h-4 text-blue-600" />
+                              )}
+                            </button>
+                          )}
+                        </Menu.Item>
+                      ))}
+                    </div>
                   </div>
                 ))}
               </div>
