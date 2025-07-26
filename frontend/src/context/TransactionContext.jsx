@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { fetchTransactions } from "../services/api";
+import { fetchTransactions, getTransactionCount } from "../services/api";
 import { transactionQueryKey } from "../hooks/useTransactionData";
 import { useDateRange } from "./DateRangeContext";
 
@@ -13,8 +13,30 @@ export const TransactionProvider = ({ children }) => {
     subcategory: null,
   });
 
+  // Pagination state
+  const [pagination, setPagination] = useState({
+    limit: 100,
+    offset: 0,
+    currentPage: 1,
+  });
+
   // Get date range from DateRangeContext
   const { appliedDateRange } = useDateRange();
+
+  // Fetch transaction count for pagination
+  const {
+    data: totalCount = 0,
+    isLoading: isCountLoading,
+  } = useQuery({
+    queryKey: ["transactionCount", filters, appliedDateRange],
+    queryFn: () =>
+      getTransactionCount({
+        ...filters,
+        startDate: appliedDateRange.startDate,
+        endDate: appliedDateRange.endDate,
+      }),
+    enabled: !!appliedDateRange.startDate && !!appliedDateRange.endDate,
+  });
 
   // Fetch transaction data to be shared across components
   const {
@@ -23,12 +45,14 @@ export const TransactionProvider = ({ children }) => {
     error,
     refetch,
   } = useQuery({
-    queryKey: transactionQueryKey(filters, appliedDateRange),
+    queryKey: transactionQueryKey(filters, appliedDateRange, pagination),
     queryFn: () =>
       fetchTransactions({
         ...filters,
         startDate: appliedDateRange.startDate,
         endDate: appliedDateRange.endDate,
+        limit: pagination.limit,
+        offset: pagination.offset,
       }),
     keepPreviousData: true,
     enabled: !!appliedDateRange.startDate && !!appliedDateRange.endDate,
@@ -40,6 +64,28 @@ export const TransactionProvider = ({ children }) => {
       category,
       subcategory,
     }));
+    // Reset pagination when filters change
+    setPagination(prev => ({
+      ...prev,
+      offset: 0,
+      currentPage: 1,
+    }));
+  };
+
+  const updatePagination = (newPagination) => {
+    setPagination(prev => ({
+      ...prev,
+      ...newPagination,
+    }));
+  };
+
+  const goToPage = (page) => {
+    const newOffset = (page - 1) * pagination.limit;
+    setPagination(prev => ({
+      ...prev,
+      offset: newOffset,
+      currentPage: page,
+    }));
   };
 
   return (
@@ -48,9 +94,13 @@ export const TransactionProvider = ({ children }) => {
         filters,
         updateFilters,
         transactionData,
-        isLoading,
+        isLoading: isLoading || isCountLoading,
         error,
         refetch,
+        pagination,
+        updatePagination,
+        goToPage,
+        totalCount,
       }}
     >
       {children}

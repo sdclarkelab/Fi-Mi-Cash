@@ -34,7 +34,9 @@ class TransactionService:
             category: Optional[str] = None,
             subcategory: Optional[str] = None,
             min_confidence: float = 0.0,
-            include_excluded: bool = True
+            include_excluded: bool = True,
+            limit: Optional[int] = None,
+            offset: Optional[int] = None
     ) -> List[Transaction]:
 
         # Check if we need to sync with Gmail
@@ -45,7 +47,7 @@ class TransactionService:
 
         # Then retrieve transactions from database with filters
         db_transactions = TransactionCrud.get_transactions(
-            self.db, date_range, category, subcategory, min_confidence, include_excluded
+            self.db, date_range, category, subcategory, min_confidence, include_excluded, limit, offset
         )
 
         # Convert DB models to Pydantic models
@@ -255,3 +257,15 @@ class TransactionService:
             self.db, merchant, category, subcategory
         )
         return updated_count > 0
+
+    def get_categories(self, date_range: DateRange, category: Optional[str] = None, subcategory: Optional[str] = None, min_confidence: float = 0.0, include_excluded: bool = True) -> dict:
+        """Get categories efficiently from database"""
+        return TransactionCrud.get_categories(
+            self.db, date_range, category, subcategory, min_confidence, include_excluded
+        )
+
+    def get_transaction_count(self, date_range: DateRange, category: Optional[str] = None, subcategory: Optional[str] = None, min_confidence: float = 0.0, include_excluded: bool = True) -> int:
+        """Get transaction count efficiently from database"""
+        return TransactionCrud.get_transaction_count(
+            self.db, date_range, category, subcategory, min_confidence, include_excluded
+        )

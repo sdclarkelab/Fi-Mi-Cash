@@ -39,7 +39,9 @@ class TransactionCrud:
             category: Optional[str] = None,
             subcategory: Optional[str] = None,
             min_confidence: float = 0.0,
-            include_excluded: bool = True
+            include_excluded: bool = True,
+            limit: Optional[int] = None,
+            offset: Optional[int] = None
     ) -> List[TransactionModel]:
         query = db.query(TransactionModel)
 
@@ -61,7 +63,14 @@ class TransactionCrud:
         if not include_excluded:
             query = query.filter(TransactionModel.excluded == False)
 
-        return query.order_by(TransactionModel.date.desc()).all()
+        query = query.order_by(TransactionModel.date.desc())
+        
+        if offset:
+            query = query.offset(offset)
+        if limit:
+            query = query.limit(limit)
+
+        return query.all()
 
     @staticmethod
     def transaction_exists(db: Session, transaction: Transaction) -> bool:
@@ -96,6 +105,82 @@ class TransactionCrud:
         except Exception as e:
             db.rollback()
             return 0
+
+
+    @staticmethod
+    def get_categories(
+            db: Session,
+            date_range: Optional[DateRange] = None,
+            category: Optional[str] = None,
+            subcategory: Optional[str] = None,
+            min_confidence: float = 0.0,
+            include_excluded: bool = True
+    ) -> dict:
+        """Get category-subcategory mapping efficiently from database"""
+        query = db.query(
+            TransactionModel.primary_category,
+            TransactionModel.subcategory
+        ).distinct()
+
+        if date_range:
+            if date_range.start_date:
+                query = query.filter(TransactionModel.date >= date_range.start_date)
+            if date_range.end_date:
+                query = query.filter(TransactionModel.date <= date_range.end_date)
+
+        if category:
+            query = query.filter(TransactionModel.primary_category.ilike(f"%{category}%"))
+
+        if subcategory:
+            query = query.filter(TransactionModel.subcategory.ilike(f"%{subcategory}%"))
+
+        if min_confidence > 0:
+            query = query.filter(TransactionModel.confidence >= min_confidence)
+
+        if not include_excluded:
+            query = query.filter(TransactionModel.excluded == False)
+
+        results = query.all()
+        categories = {}
+        for primary_category, subcategory in results:
+            if primary_category not in categories:
+                categories[primary_category] = []
+            if subcategory not in categories[primary_category]:
+                categories[primary_category].append(subcategory)
+        
+        return categories
+
+    @staticmethod
+    def get_transaction_count(
+            db: Session,
+            date_range: Optional[DateRange] = None,
+            category: Optional[str] = None,
+            subcategory: Optional[str] = None,
+            min_confidence: float = 0.0,
+            include_excluded: bool = True
+    ) -> int:
+        """Get count of transactions matching filters"""
+        query = db.query(TransactionModel)
+
+        if date_range:
+            if date_range.start_date:
+                query = query.filter(TransactionModel.date >= date_range.start_date)
+            if date_range.end_date:
+                query = query.filter(TransactionModel.date <= date_range.end_date)
+
+        if category:
+            query = query.filter(TransactionModel.primary_category.ilike(f"%{category}%"))
+
+        if subcategory:
+            query = query.filter(TransactionModel.subcategory.ilike(f"%{subcategory}%"))
+
+        if min_confidence > 0:
+            query = query.filter(TransactionModel.confidence >= min_confidence)
+
+        if not include_excluded:
+            query = query.filter(TransactionModel.excluded == False)
+
+        return query.count()
 
 
 class SyncInfoCrud:
