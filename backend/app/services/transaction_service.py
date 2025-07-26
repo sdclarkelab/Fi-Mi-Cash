@@ -138,7 +138,7 @@ class TransactionService:
                 currency = amount_match.group('currency')  # Get currency from named group
                 # Remove commas from amount and convert to float
                 if currency == 'USD':
-                    amount = Decimal(amount_match.group('amount').replace(',', '')) * Decimal('158')
+                    amount = Decimal(amount_match.group('amount').replace(',', '')) * Decimal('159')
                 elif currency == 'JMD':
                     amount = Decimal(amount_match.group('amount').replace(',', ''))
 
