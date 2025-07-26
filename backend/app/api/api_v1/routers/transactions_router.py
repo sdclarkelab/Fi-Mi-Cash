@@ -20,13 +20,29 @@ async def get_transactions(
         category: Optional[str] = None,
         subcategory: Optional[str] = None,
         min_confidence: float = Query(default=0.0, ge=0.0, le=1.0),
+        limit: Optional[int] = Query(default=100, le=1000),
+        offset: Optional[int] = Query(default=0, ge=0),
         service: TransactionService = Depends(get_transaction_service)
 ):
     """
-    Get transactions with optional filters.
+    Get transactions with optional filters and pagination.
     """
     date_range = DateRange(start_date=start_date, end_date=end_date)
+    
+    # Get transactions with pagination
     transactions = await service.get_transactions(
+        date_range=date_range,
+        category=category,
+        subcategory=subcategory,
+        min_confidence=min_confidence,
+        include_excluded=True,
+        limit=limit,
+        offset=offset
+    )
+
+    # Get summary and categories efficiently using separate queries
+    summary = await service.get_summary(transactions)
+    categories = service.get_categories(
         date_range=date_range,
         category=category,
         subcategory=subcategory,
@@ -34,17 +50,30 @@ async def get_transactions(
         include_excluded=True
     )
 
-    summary = await service.get_summary(transactions)
-
-    # Extract categories from transactions
-    categories = {}
-    for transaction in transactions:
-        if transaction.primary_category not in categories:
-            categories[transaction.primary_category] = []
-        if transaction.subcategory not in categories[transaction.primary_category]:
-            categories[transaction.primary_category].append(transaction.subcategory)
-
     return TransactionList(transactions=transactions, transaction_summary=summary, categories=categories)
+
+
+@router.get("/transactions/count")
+async def get_transaction_count(
+        start_date: datetime = Query(..., alias="startDate"),
+        end_date: datetime = Query(..., alias="endDate"),
+        category: Optional[str] = None,
+        subcategory: Optional[str] = None,
+        min_confidence: float = Query(default=0.0, ge=0.0, le=1.0),
+        service: TransactionService = Depends(get_transaction_service)
+):
+    """
+    Get total count of transactions matching filters.
+    """
+    date_range = DateRange(start_date=start_date, end_date=end_date)
+    count = service.get_transaction_count(
+        date_range=date_range,
+        category=category,
+        subcategory=subcategory,
+        min_confidence=min_confidence,
+        include_excluded=True
+    )
+    return {"count": count}
 
 
 @router.patch("/transactions/{transaction_id}/toggle-exclude", response_model=Transaction)

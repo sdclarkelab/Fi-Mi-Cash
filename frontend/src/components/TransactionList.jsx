@@ -5,10 +5,19 @@ import LoadingSpinner from "./LoadingSpinner";
 import ErrorAlert from "./ErrorAlert";
 import { toggleTransactionExclusion as apiToggleExclusion } from "../services/api";
 import CategoryEditModal from "./CategoryEditModal";
+import Pagination from "./Pagination";
 
 const TransactionList = () => {
-  const { filters, transactionData, isLoading, error, refetch } =
-    useTransactionContext();
+  const { 
+    filters, 
+    transactionData, 
+    isLoading, 
+    error, 
+    refetch, 
+    pagination, 
+    goToPage, 
+    totalCount 
+  } = useTransactionContext();
   const [updatingTransactionId, setUpdatingTransactionId] = useState(null);
   const [editingTransaction, setEditingTransaction] = useState(null);
   const [isCategoryModalOpen, setCategoryModalOpen] = useState(false);
@@ -281,6 +290,15 @@ const TransactionList = () => {
             </table>
           </div>
         </div>
+
+        {/* Pagination */}
+        <Pagination
+          currentPage={pagination.currentPage}
+          totalItems={totalCount}
+          itemsPerPage={pagination.limit}
+          onPageChange={goToPage}
+          isLoading={isLoading}
+        />
       </div>
 
       {/* Category Edit Modal */}

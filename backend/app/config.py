@@ -28,6 +28,11 @@ class Settings(BaseSettings):
     # Logging
     LOG_LEVEL: str = "INFO"
 
+    # Sync Configuration
+    MAX_SYNC_DAYS: int = 90  # Maximum days to sync in one operation
+    SYNC_WINDOW_DAYS: int = 30  # Preferred sync window size
+    MIN_SYNC_OVERLAP_HOURS: int = 1  # Minimum overlap to avoid re-sync
+
     class Config:
         env_file = ".env"
         case_sensitive = True

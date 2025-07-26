@@ -27,6 +27,8 @@ export const fetchTransactions = async ({
   category,
   subcategory,
   minConfidence = 0.0,
+  limit = 100,
+  offset = 0,
 }) => {
   try {
     const params = new URLSearchParams();
@@ -38,6 +40,10 @@ export const fetchTransactions = async ({
     if (subcategory) params.append("subcategory", subcategory);
     if (typeof minConfidence === "number")
       params.append("min_confidence", minConfidence.toString());
+    if (typeof limit === "number")
+      params.append("limit", limit.toString());
+    if (typeof offset === "number")
+      params.append("offset", offset.toString());
 
     const { data } = await api.get(`/transactions?${params.toString()}`);
     return data;
@@ -117,4 +123,29 @@ export const deleteRule = async (merchant) => {
   }
 
   return response.json();
+};
+
+export const getTransactionCount = async ({
+  startDate,
+  endDate,
+  category,
+  subcategory,
+  minConfidence = 0.0,
+}) => {
+  try {
+    const params = new URLSearchParams();
+    if (startDate instanceof Date)
+      params.append("startDate", startDate.toISOString());
+    if (endDate instanceof Date)
+      params.append("endDate", endDate.toISOString());
+    if (category) params.append("category", category);
+    if (subcategory) params.append("subcategory", subcategory);
+    if (typeof minConfidence === "number")
+      params.append("min_confidence", minConfidence.toString());
+
+    const { data } = await api.get(`/transactions/count?${params.toString()}`);
+    return data.count;
+  } catch (error) {
+    throw new Error(`Failed to fetch transaction count: ${error.message}`);
+  }
 };

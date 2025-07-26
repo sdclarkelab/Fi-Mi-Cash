@@ -34,7 +34,9 @@ class TransactionService:
             category: Optional[str] = None,
             subcategory: Optional[str] = None,
             min_confidence: float = 0.0,
-            include_excluded: bool = True
+            include_excluded: bool = True,
+            limit: Optional[int] = None,
+            offset: Optional[int] = None
     ) -> List[Transaction]:
 
         # Check if we need to sync with Gmail
@@ -45,7 +47,7 @@ class TransactionService:
 
         # Then retrieve transactions from database with filters
         db_transactions = TransactionCrud.get_transactions(
-            self.db, date_range, category, subcategory, min_confidence, include_excluded
+            self.db, date_range, category, subcategory, min_confidence, include_excluded, limit, offset
         )
 
         # Convert DB models to Pydantic models
@@ -65,15 +67,22 @@ class TransactionService:
 
     async def _sync_transactions(self, date_range: DateRange):
         """Fetch transactions from Gmail and store in SQLite if not already present"""
-        query = self._build_gmail_query(date_range)
-        emails = self.gmail_service.get_messages(query)
+        # Only sync the gaps that haven't been synced yet
+        sync_gaps = SyncInfoCrud.get_sync_gaps(self.db, date_range)
+        
+        if not sync_gaps:
+            return  # No gaps to sync
+            
+        for gap in sync_gaps:
+            query = self._build_gmail_query(gap)
+            emails = self.gmail_service.get_messages(query)
 
-        for email in emails:
-            transaction = await self._parse_transaction(email)
-            if transaction and not TransactionCrud.transaction_exists(self.db, transaction):
-                TransactionCrud.create_transaction(self.db, transaction)
+            for email in emails:
+                transaction = await self._parse_transaction(email)
+                if transaction and not TransactionCrud.transaction_exists(self.db, transaction):
+                    TransactionCrud.create_transaction(self.db, transaction)
 
-        # Update the sync info
+        # Update the sync info with the originally requested range
         start_date = date_range.start_date if date_range else None
         end_date = date_range.end_date if date_range else None
         SyncInfoCrud.update_last_sync(self.db, start_date, end_date)
@@ -138,7 +147,7 @@ class TransactionService:
                 currency = amount_match.group('currency')  # Get currency from named group
                 # Remove commas from amount and convert to float
                 if currency == 'USD':
-                    amount = Decimal(amount_match.group('amount').replace(',', '')) * Decimal('158')
+                    amount = Decimal(amount_match.group('amount').replace(',', '')) * Decimal('159')
                 elif currency == 'JMD':
                     amount = Decimal(amount_match.group('amount').replace(',', ''))
 
@@ -229,39 +238,18 @@ class TransactionService:
         return None
 
     async def _should_sync_transactions(self, date_range: DateRange = None) -> bool:
-        """Determine if we need to sync transactions from Gmail"""
-        # Get the last sync info
-        last_sync_info = SyncInfoCrud.get_last_sync(self.db)
-
-        # If no previous sync, we should sync now
-        if not last_sync_info:
-            return True
-
-        # If no specific date range requested, check if we've synced today
+        """Determine if we need to sync transactions from Gmail using gap-based logic"""
         if not date_range:
+            # If no specific range, check if we've synced today
+            last_sync_info = SyncInfoCrud.get_last_sync(self.db)
+            if not last_sync_info:
+                return True
             today = datetime.now().date()
             return last_sync_info.last_sync_date.date() != today
 
-        # Convert datetime objects to naive before comparison
-        def to_naive(dt):
-            if dt and dt.tzinfo:
-                return dt.replace(tzinfo=None)
-            return dt
-
-        # Get normalized datetime objects
-        start_date = to_naive(date_range.start_date) if date_range.start_date else None
-        end_date = to_naive(date_range.end_date) if date_range.end_date else None
-        last_start = to_naive(last_sync_info.start_date) if last_sync_info.start_date else None
-        last_end = to_naive(last_sync_info.end_date) if last_sync_info.end_date else None
-
-        # Check if requested dates are outside our last sync range
-        if start_date and (not last_start or start_date < last_start):
-            return True
-
-        if end_date and (not last_end or end_date > last_end):
-            return True
-
-        return False
+        # Use gap detection to determine if sync is needed
+        sync_gaps = SyncInfoCrud.get_sync_gaps(self.db, date_range)
+        return len(sync_gaps) > 0
 
     def update_category(self, merchant: str, category: str, subcategory: str) -> bool:
         """Update the category for a merchant"""
@@ -269,3 +257,15 @@ class TransactionService:
             self.db, merchant, category, subcategory
         )
         return updated_count > 0
+
+    def get_categories(self, date_range: DateRange, category: Optional[str] = None, subcategory: Optional[str] = None, min_confidence: float = 0.0, include_excluded: bool = True) -> dict:
+        """Get categories efficiently from database"""
+        return TransactionCrud.get_categories(
+            self.db, date_range, category, subcategory, min_confidence, include_excluded
+        )
+
+    def get_transaction_count(self, date_range: DateRange, category: Optional[str] = None, subcategory: Optional[str] = None, min_confidence: float = 0.0, include_excluded: bool = True) -> int:
+        """Get transaction count efficiently from database"""
+        return TransactionCrud.get_transaction_count(
+            self.db, date_range, category, subcategory, min_confidence, include_excluded
+        )
