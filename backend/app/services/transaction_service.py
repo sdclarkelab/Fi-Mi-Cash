@@ -1,5 +1,6 @@
 import re
 import uuid
+import aiohttp
 from collections import defaultdict
 from datetime import datetime
 from decimal import Decimal
@@ -121,6 +122,52 @@ class TransactionService:
             merchants=list(set(t.merchant for t in included_transactions))
         )
 
+    async def _get_usd_to_jmd_rate(self, transaction_date: datetime) -> Decimal:
+        """
+        Fetch USD to JMD exchange rate for a specific date using fawazahmed0's currency API.
+        Falls back to latest rate if historical data is not available.
+        """
+        try:
+            # Format date as YYYY-MM-DD for the API
+            date_str = transaction_date.strftime("%Y-%m-%d")
+            
+            # Try to get historical rate for the specific date
+            historical_url = f"https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@{date_str}/v1/currencies/usd.json"
+            
+            async with aiohttp.ClientSession() as session:
+                try:
+                    # First try historical rate
+                    async with session.get(historical_url, timeout=10) as response:
+                        if response.status == 200:
+                            data = await response.json()
+                            jmd_rate = data.get("usd", {}).get("jmd")
+                            if jmd_rate:
+                                logger.info(f"Using historical USD to JMD rate for {date_str}: {jmd_rate}")
+                                return Decimal(str(jmd_rate))
+                except (aiohttp.ClientError, KeyError, ValueError):
+                    logger.warning(f"Historical rate not available for {date_str}, falling back to latest")
+                
+                # Fallback to latest rate
+                latest_url = "https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usd.json"
+                async with session.get(latest_url, timeout=10) as response:
+                    if response.status == 200:
+                        data = await response.json()
+                        jmd_rate = data.get("usd", {}).get("jmd")
+                        if jmd_rate:
+                            logger.info(f"Using latest USD to JMD rate for {date_str}: {jmd_rate}")
+                            return Decimal(str(jmd_rate))
+                        else:
+                            raise ValueError("JMD rate not found in API response")
+                    else:
+                        raise ValueError(f"API returned status {response.status}")
+                        
+        except Exception as e:
+            logger.error(f"Failed to fetch USD to JMD exchange rate: {str(e)}")
+            # Fallback to hardcoded rate as last resort
+            fallback_rate = Decimal('159')
+            logger.warning(f"Using fallback USD to JMD rate: {fallback_rate}")
+            return fallback_rate
+
     @staticmethod
     def _build_gmail_query(date_range: DateRange) -> str:
         query = 'from:no-reply-ncbcardalerts@jncb.com'
@@ -145,11 +192,15 @@ class TransactionService:
             # Get both the currency and amount
             if amount_match:
                 currency = amount_match.group('currency')  # Get currency from named group
-                # Remove commas from amount and convert to float
+                raw_amount = Decimal(amount_match.group('amount').replace(',', ''))
+                
                 if currency == 'USD':
-                    amount = Decimal(amount_match.group('amount').replace(',', '')) * Decimal('159')
+                    # Get historical exchange rate for the transaction date
+                    exchange_rate = await self._get_usd_to_jmd_rate(email.date)
+                    amount = raw_amount * exchange_rate
+                    logger.info(f"Converted USD {raw_amount} to JMD {amount} using rate {exchange_rate}")
                 elif currency == 'JMD':
-                    amount = Decimal(amount_match.group('amount').replace(',', ''))
+                    amount = raw_amount
 
             # Pattern for merchant - looks for content between Merchant and /div
             merchant_pattern = r'Merchant</div></td>\s*<td[^>]*><div[^>]*>([^<]+)</div>'
