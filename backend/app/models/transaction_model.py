@@ -1,6 +1,6 @@
 import uuid
 
-from sqlalchemy import Column, String, DateTime, Numeric, Float, Boolean
+from sqlalchemy import Column, String, DateTime, Numeric, Float, Boolean, Date
 
 from app.db.base_class import Base
 
@@ -17,3 +17,9 @@ class TransactionModel(Base):
     confidence = Column(Float)
     description = Column(String)
     excluded = Column(Boolean, default=False, nullable=False)
+    
+    # Exchange rate fields for USD transactions
+    original_currency = Column(String(3))  # USD, JMD, etc.
+    original_amount = Column(Numeric(10, 2))  # Amount in original currency
+    exchange_rate = Column(Numeric(10, 6))  # Exchange rate applied
+    exchange_rate_date = Column(Date)  # Date the exchange rate was from

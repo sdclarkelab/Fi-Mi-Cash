@@ -62,7 +62,11 @@ class TransactionService:
                 subcategory=tx.subcategory,
                 confidence=tx.confidence,
                 description=tx.description,
-                excluded=tx.excluded
+                excluded=tx.excluded,
+                original_currency=tx.original_currency,
+                original_amount=Decimal(str(tx.original_amount)) if tx.original_amount else None,
+                exchange_rate=Decimal(str(tx.exchange_rate)) if tx.exchange_rate else None,
+                exchange_rate_date=tx.exchange_rate_date
             ) for tx in db_transactions
         ]
 
@@ -185,6 +189,10 @@ class TransactionService:
 
         try:
             amount = 0.0
+            original_currency = None
+            original_amount = None
+            exchange_rate = None
+            exchange_rate_date = None
 
             amount_pattern = r'(?P<currency>USD|JMD)\s+(?P<amount>[\d,\.]+)'
             amount_match = re.search(amount_pattern, email.body)
@@ -194,11 +202,16 @@ class TransactionService:
                 currency = amount_match.group('currency')  # Get currency from named group
                 raw_amount = Decimal(amount_match.group('amount').replace(',', ''))
                 
+                # Store original transaction details
+                original_currency = currency
+                original_amount = raw_amount
+                
                 if currency == 'USD':
                     # Get historical exchange rate for the transaction date
                     exchange_rate = await self._get_usd_to_jmd_rate(email.date)
                     amount = raw_amount * exchange_rate
-                    logger.info(f"Converted USD {raw_amount} to JMD {amount} using rate {exchange_rate}")
+                    exchange_rate_date = email.date.date()
+                    logger.info(f"Converted USD {raw_amount} to JMD {amount} using rate {exchange_rate} for date {exchange_rate_date}")
                 elif currency == 'JMD':
                     amount = raw_amount
 
@@ -221,7 +234,11 @@ class TransactionService:
                 primary_category=classification.primary_category,
                 subcategory=classification.subcategory,
                 confidence=classification.confidence,
-                description=classification.description
+                description=classification.description,
+                original_currency=original_currency,
+                original_amount=original_amount,
+                exchange_rate=exchange_rate,
+                exchange_rate_date=exchange_rate_date
             )
         except Exception as e:
             logger.error(f"Error processing transaction: {str(e)}")
@@ -284,7 +301,11 @@ class TransactionService:
                 subcategory=tx.subcategory,
                 confidence=tx.confidence,
                 description=tx.description,
-                excluded=tx.excluded
+                excluded=tx.excluded,
+                original_currency=tx.original_currency,
+                original_amount=Decimal(str(tx.original_amount)) if tx.original_amount else None,
+                exchange_rate=Decimal(str(tx.exchange_rate)) if tx.exchange_rate else None,
+                exchange_rate_date=tx.exchange_rate_date
             )
         return None
 
