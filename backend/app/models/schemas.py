@@ -36,6 +36,9 @@ class Transaction(BaseModel):
     original_amount: Optional[Decimal] = None
     exchange_rate: Optional[Decimal] = None
     exchange_rate_date: Optional[date] = None
+    
+    # Card information
+    card_type: Optional[str] = None
 
     class Config:
         json_encoders = {

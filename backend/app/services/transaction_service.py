@@ -66,7 +66,8 @@ class TransactionService:
                 original_currency=tx.original_currency,
                 original_amount=Decimal(str(tx.original_amount)) if tx.original_amount else None,
                 exchange_rate=Decimal(str(tx.exchange_rate)) if tx.exchange_rate else None,
-                exchange_rate_date=tx.exchange_rate_date
+                exchange_rate_date=tx.exchange_rate_date,
+                card_type=tx.card_type
             ) for tx in db_transactions
         ]
 
@@ -220,6 +221,13 @@ class TransactionService:
             merchant_match = re.search(merchant_pattern, email.body)
             merchant = merchant_match.group(1).strip() if merchant_match else ""
 
+            # Extract card type from email body
+            card_type = None
+            if "MASTERCARD PLATINUM USD" in email.body:
+                card_type = "MASTERCARD PLATINUM USD"
+            elif "NCB VISA PLATINUM" in email.body:
+                card_type = "NCB VISA PLATINUM"
+
             if not amount or not merchant:
                 logger.warning(f"Failed to parse transaction from email dated {email.date}")
                 return None
@@ -238,7 +246,8 @@ class TransactionService:
                 original_currency=original_currency,
                 original_amount=original_amount,
                 exchange_rate=exchange_rate,
-                exchange_rate_date=exchange_rate_date
+                exchange_rate_date=exchange_rate_date,
+                card_type=card_type
             )
         except Exception as e:
             logger.error(f"Error processing transaction: {str(e)}")
@@ -305,7 +314,8 @@ class TransactionService:
                 original_currency=tx.original_currency,
                 original_amount=Decimal(str(tx.original_amount)) if tx.original_amount else None,
                 exchange_rate=Decimal(str(tx.exchange_rate)) if tx.exchange_rate else None,
-                exchange_rate_date=tx.exchange_rate_date
+                exchange_rate_date=tx.exchange_rate_date,
+                card_type=tx.card_type
             )
         return None
 

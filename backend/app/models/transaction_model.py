@@ -23,3 +23,6 @@ class TransactionModel(Base):
     original_amount = Column(Numeric(10, 2))  # Amount in original currency
     exchange_rate = Column(Numeric(10, 6))  # Exchange rate applied
     exchange_rate_date = Column(Date)  # Date the exchange rate was from
+    
+    # Card information
+    card_type = Column(String(50))  # Card type used for transaction

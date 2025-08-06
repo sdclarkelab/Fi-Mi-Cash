@@ -29,7 +29,8 @@ class TransactionCrud:
             original_currency=transaction.original_currency,
             original_amount=transaction.original_amount,
             exchange_rate=transaction.exchange_rate,
-            exchange_rate_date=transaction.exchange_rate_date
+            exchange_rate_date=transaction.exchange_rate_date,
+            card_type=transaction.card_type
         )
         db.add(db_transaction)
         db.commit()

@@ -22,6 +22,32 @@ const TransactionList = () => {
   const [editingTransaction, setEditingTransaction] = useState(null);
   const [isCategoryModalOpen, setCategoryModalOpen] = useState(false);
 
+  // Helper function to format card type for display
+  const formatCardType = (cardType) => {
+    if (!cardType) return 'N/A';
+    
+    if (cardType === 'MASTERCARD PLATINUM USD') {
+      return 'Mastercard USD';
+    } else if (cardType === 'NCB VISA PLATINUM') {
+      return 'Visa JMD';
+    }
+    
+    return cardType;
+  };
+
+  // Helper function to get card type styling
+  const getCardTypeStyle = (cardType) => {
+    if (!cardType) return 'bg-gray-100 text-gray-800';
+    
+    if (cardType === 'MASTERCARD PLATINUM USD') {
+      return 'bg-orange-100 text-orange-800';
+    } else if (cardType === 'NCB VISA PLATINUM') {
+      return 'bg-blue-100 text-blue-800';
+    }
+    
+    return 'bg-gray-100 text-gray-800';
+  };
+
   const transactions = transactionData?.transactions || [];
   const categories = transactionData?.categories || {};
 
@@ -154,6 +180,12 @@ const TransactionList = () => {
                     scope="col"
                     className="px-3 py-3.5 text-center text-sm font-semibold text-gray-900"
                   >
+                    Card
+                  </th>
+                  <th
+                    scope="col"
+                    className="px-3 py-3.5 text-center text-sm font-semibold text-gray-900"
+                  >
                     Confidence
                   </th>
                   <th
@@ -209,6 +241,11 @@ const TransactionList = () => {
                           </span>
                         )}
                       </div>
+                    </td>
+                    <td className="whitespace-nowrap px-3 py-4 text-sm text-center">
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getCardTypeStyle(transaction.card_type)}`}>
+                        {formatCardType(transaction.card_type)}
+                      </span>
                     </td>
                     <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-900">
                       <div className="flex items-center justify-center gap-2">
