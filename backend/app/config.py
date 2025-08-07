@@ -32,6 +32,10 @@ class Settings(BaseSettings):
     MAX_SYNC_DAYS: int = 90  # Maximum days to sync in one operation
     SYNC_WINDOW_DAYS: int = 30  # Preferred sync window size
     MIN_SYNC_OVERLAP_HOURS: int = 1  # Minimum overlap to avoid re-sync
+    
+    # Card Types
+    MASTERCARD_TYPE: str = "MASTERCARD PLATINUM USD"
+    VISA_TYPE: str = "NCB VISA PLATINUM"
 
     class Config:
         env_file = ".env"

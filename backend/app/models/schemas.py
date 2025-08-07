@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime
+from datetime import datetime, date
 from decimal import Decimal
 from typing import List, Optional, Dict
 
@@ -30,6 +30,15 @@ class Transaction(BaseModel):
     confidence: float = Field(ge=0.0, le=1.0)
     description: str
     excluded: bool = False
+    
+    # Exchange rate fields for currency conversions
+    original_currency: Optional[str] = None
+    original_amount: Optional[Decimal] = None
+    exchange_rate: Optional[Decimal] = None
+    exchange_rate_date: Optional[date] = None
+    
+    # Card information
+    card_type: Optional[str] = None
 
     class Config:
         json_encoders = {

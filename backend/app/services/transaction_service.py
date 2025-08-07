@@ -1,5 +1,6 @@
 import re
 import uuid
+import aiohttp
 from collections import defaultdict
 from datetime import datetime
 from decimal import Decimal
@@ -8,6 +9,7 @@ from typing import List, Optional
 from sqlalchemy.orm import Session
 
 from app.core.logger import logger
+from app.config import get_settings
 from app.db.crud import TransactionCrud, SyncInfoCrud
 from app.models.schemas import (
     Transaction, TransactionSummary, CategorySummary,
@@ -61,7 +63,12 @@ class TransactionService:
                 subcategory=tx.subcategory,
                 confidence=tx.confidence,
                 description=tx.description,
-                excluded=tx.excluded
+                excluded=tx.excluded,
+                original_currency=tx.original_currency,
+                original_amount=Decimal(str(tx.original_amount)) if tx.original_amount else None,
+                exchange_rate=Decimal(str(tx.exchange_rate)) if tx.exchange_rate else None,
+                exchange_rate_date=tx.exchange_rate_date,
+                card_type=tx.card_type
             ) for tx in db_transactions
         ]
 
@@ -121,14 +128,61 @@ class TransactionService:
             merchants=list(set(t.merchant for t in included_transactions))
         )
 
+    async def _get_usd_to_jmd_rate(self, transaction_date: datetime) -> Decimal:
+        """
+        Fetch USD to JMD exchange rate for a specific date using fawazahmed0's currency API.
+        Falls back to latest rate if historical data is not available.
+        """
+        try:
+            # Format date as YYYY-MM-DD for the API
+            date_str = transaction_date.strftime("%Y-%m-%d")
+            
+            # Try to get historical rate for the specific date
+            historical_url = f"https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@{date_str}/v1/currencies/usd.json"
+            
+            async with aiohttp.ClientSession() as session:
+                try:
+                    # First try historical rate
+                    async with session.get(historical_url, timeout=10) as response:
+                        if response.status == 200:
+                            data = await response.json()
+                            jmd_rate = data.get("usd", {}).get("jmd")
+                            if jmd_rate:
+                                logger.info(f"Using historical USD to JMD rate for {date_str}: {jmd_rate}")
+                                return Decimal(str(jmd_rate))
+                except (aiohttp.ClientError, KeyError, ValueError):
+                    logger.warning(f"Historical rate not available for {date_str}, falling back to latest")
+                
+                # Fallback to latest rate
+                latest_url = "https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usd.json"
+                async with session.get(latest_url, timeout=10) as response:
+                    if response.status == 200:
+                        data = await response.json()
+                        jmd_rate = data.get("usd", {}).get("jmd")
+                        if jmd_rate:
+                            logger.info(f"Using latest USD to JMD rate for {date_str}: {jmd_rate}")
+                            return Decimal(str(jmd_rate))
+                        else:
+                            raise ValueError("JMD rate not found in API response")
+                    else:
+                        raise ValueError(f"API returned status {response.status}")
+                        
+        except Exception as e:
+            logger.error(f"Failed to fetch USD to JMD exchange rate: {str(e)}")
+            # Fallback to hardcoded rate as last resort
+            fallback_rate = Decimal('159')
+            logger.warning(f"Using fallback USD to JMD rate: {fallback_rate}")
+            return fallback_rate
+
     @staticmethod
     def _build_gmail_query(date_range: DateRange) -> str:
+        settings = get_settings()
         query = 'from:no-reply-ncbcardalerts@jncb.com'
 
         query += f' after:{int(date_range.start_date.timestamp())}'
         query += f' before:{int(date_range.end_date.timestamp())}'
 
-        query += ' "Transaction Approved" ("NCB VISA PLATINUM" OR "MASTERCARD PLATINUM USD")'
+        query += f' "Transaction Approved" ("{settings.VISA_TYPE}" OR "{settings.MASTERCARD_TYPE}")'
         return query
 
     async def _parse_transaction(
@@ -138,6 +192,10 @@ class TransactionService:
 
         try:
             amount = 0.0
+            original_currency = None
+            original_amount = None
+            exchange_rate = None
+            exchange_rate_date = None
 
             amount_pattern = r'(?P<currency>USD|JMD)\s+(?P<amount>[\d,\.]+)'
             amount_match = re.search(amount_pattern, email.body)
@@ -145,16 +203,33 @@ class TransactionService:
             # Get both the currency and amount
             if amount_match:
                 currency = amount_match.group('currency')  # Get currency from named group
-                # Remove commas from amount and convert to float
+                raw_amount = Decimal(amount_match.group('amount').replace(',', ''))
+                
+                # Store original transaction details
+                original_currency = currency
+                original_amount = raw_amount
+                
                 if currency == 'USD':
-                    amount = Decimal(amount_match.group('amount').replace(',', '')) * Decimal('159')
+                    # Get historical exchange rate for the transaction date
+                    exchange_rate = await self._get_usd_to_jmd_rate(email.date)
+                    amount = raw_amount * exchange_rate
+                    exchange_rate_date = email.date.date()
+                    logger.info(f"Converted USD {raw_amount} to JMD {amount} using rate {exchange_rate} for date {exchange_rate_date}")
                 elif currency == 'JMD':
-                    amount = Decimal(amount_match.group('amount').replace(',', ''))
+                    amount = raw_amount
 
             # Pattern for merchant - looks for content between Merchant and /div
             merchant_pattern = r'Merchant</div></td>\s*<td[^>]*><div[^>]*>([^<]+)</div>'
             merchant_match = re.search(merchant_pattern, email.body)
             merchant = merchant_match.group(1).strip() if merchant_match else ""
+
+            # Extract card type from email body using config settings
+            settings = get_settings()
+            card_type = None
+            if settings.MASTERCARD_TYPE in email.body:
+                card_type = settings.MASTERCARD_TYPE
+            elif settings.VISA_TYPE in email.body:
+                card_type = settings.VISA_TYPE
 
             if not amount or not merchant:
                 logger.warning(f"Failed to parse transaction from email dated {email.date}")
@@ -170,7 +245,12 @@ class TransactionService:
                 primary_category=classification.primary_category,
                 subcategory=classification.subcategory,
                 confidence=classification.confidence,
-                description=classification.description
+                description=classification.description,
+                original_currency=original_currency,
+                original_amount=original_amount,
+                exchange_rate=exchange_rate,
+                exchange_rate_date=exchange_rate_date,
+                card_type=card_type
             )
         except Exception as e:
             logger.error(f"Error processing transaction: {str(e)}")
@@ -233,7 +313,12 @@ class TransactionService:
                 subcategory=tx.subcategory,
                 confidence=tx.confidence,
                 description=tx.description,
-                excluded=tx.excluded
+                excluded=tx.excluded,
+                original_currency=tx.original_currency,
+                original_amount=Decimal(str(tx.original_amount)) if tx.original_amount else None,
+                exchange_rate=Decimal(str(tx.exchange_rate)) if tx.exchange_rate else None,
+                exchange_rate_date=tx.exchange_rate_date,
+                card_type=tx.card_type
             )
         return None
 
