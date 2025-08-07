@@ -9,6 +9,7 @@ from typing import List, Optional
 from sqlalchemy.orm import Session
 
 from app.core.logger import logger
+from app.config import get_settings
 from app.db.crud import TransactionCrud, SyncInfoCrud
 from app.models.schemas import (
     Transaction, TransactionSummary, CategorySummary,
@@ -175,12 +176,13 @@ class TransactionService:
 
     @staticmethod
     def _build_gmail_query(date_range: DateRange) -> str:
+        settings = get_settings()
         query = 'from:no-reply-ncbcardalerts@jncb.com'
 
         query += f' after:{int(date_range.start_date.timestamp())}'
         query += f' before:{int(date_range.end_date.timestamp())}'
 
-        query += ' "Transaction Approved" ("NCB VISA PLATINUM" OR "MASTERCARD PLATINUM USD")'
+        query += f' "Transaction Approved" ("{settings.VISA_TYPE}" OR "{settings.MASTERCARD_TYPE}")'
         return query
 
     async def _parse_transaction(
@@ -221,12 +223,13 @@ class TransactionService:
             merchant_match = re.search(merchant_pattern, email.body)
             merchant = merchant_match.group(1).strip() if merchant_match else ""
 
-            # Extract card type from email body
+            # Extract card type from email body using config settings
+            settings = get_settings()
             card_type = None
-            if "MASTERCARD PLATINUM USD" in email.body:
-                card_type = "MASTERCARD PLATINUM USD"
-            elif "NCB VISA PLATINUM" in email.body:
-                card_type = "NCB VISA PLATINUM"
+            if settings.MASTERCARD_TYPE in email.body:
+                card_type = settings.MASTERCARD_TYPE
+            elif settings.VISA_TYPE in email.body:
+                card_type = settings.VISA_TYPE
 
             if not amount or not merchant:
                 logger.warning(f"Failed to parse transaction from email dated {email.date}")

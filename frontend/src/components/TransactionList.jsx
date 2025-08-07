@@ -26,9 +26,13 @@ const TransactionList = () => {
   const formatCardType = (cardType) => {
     if (!cardType) return 'N/A';
     
-    if (cardType === 'MASTERCARD PLATINUM USD') {
+    // Use environment variables or fallback to hardcoded values
+    const MASTERCARD_TYPE = process.env.REACT_APP_MASTERCARD_TYPE || 'MASTERCARD PLATINUM USD';
+    const VISA_TYPE = process.env.REACT_APP_VISA_TYPE || 'NCB VISA PLATINUM';
+    
+    if (cardType === MASTERCARD_TYPE) {
       return 'Mastercard USD';
-    } else if (cardType === 'NCB VISA PLATINUM') {
+    } else if (cardType === VISA_TYPE) {
       return 'Visa JMD';
     }
     
@@ -39,9 +43,13 @@ const TransactionList = () => {
   const getCardTypeStyle = (cardType) => {
     if (!cardType) return 'bg-gray-100 text-gray-800';
     
-    if (cardType === 'MASTERCARD PLATINUM USD') {
+    // Use environment variables or fallback to hardcoded values
+    const MASTERCARD_TYPE = process.env.REACT_APP_MASTERCARD_TYPE || 'MASTERCARD PLATINUM USD';
+    const VISA_TYPE = process.env.REACT_APP_VISA_TYPE || 'NCB VISA PLATINUM';
+    
+    if (cardType === MASTERCARD_TYPE) {
       return 'bg-orange-100 text-orange-800';
-    } else if (cardType === 'NCB VISA PLATINUM') {
+    } else if (cardType === VISA_TYPE) {
       return 'bg-blue-100 text-blue-800';
     }
     
