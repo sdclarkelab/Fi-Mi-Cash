@@ -33,6 +33,7 @@ class TransactionService:
     async def get_transactions(
             self,
             date_range: DateRange,
+            categories: Optional[List[dict]] = None,
             category: Optional[str] = None,
             subcategory: Optional[str] = None,
             min_confidence: float = 0.0,
@@ -49,7 +50,7 @@ class TransactionService:
 
         # Then retrieve transactions from database with filters
         db_transactions = TransactionCrud.get_transactions(
-            self.db, date_range, category, subcategory, min_confidence, include_excluded, limit, offset
+            self.db, date_range, categories, category, subcategory, min_confidence, include_excluded, limit, offset
         )
 
         # Convert DB models to Pydantic models
@@ -108,6 +109,7 @@ class TransactionService:
 
         primary_categories = defaultdict(lambda: self._empty_category_summary())
         subcategories = defaultdict(lambda: self._empty_category_summary())
+        card_types = defaultdict(lambda: self._empty_category_summary())
 
         for transaction in included_transactions:
             self._update_category_summary(
@@ -118,6 +120,11 @@ class TransactionService:
                 subcategories[f"{transaction.primary_category} - {transaction.subcategory}"],
                 transaction
             )
+            if transaction.card_type:
+                self._update_category_summary(
+                    card_types[transaction.card_type],
+                    transaction
+                )
 
         return TransactionSummary(
             total_spending=sum(t.amount for t in included_transactions),
@@ -125,6 +132,7 @@ class TransactionService:
             average_transaction=sum(t.amount for t in included_transactions) / len(transactions),
             by_primary_category=dict(primary_categories),
             by_subcategory=dict(subcategories),
+            by_card_type=dict(card_types),
             merchants=list(set(t.merchant for t in included_transactions))
         )
 
@@ -286,6 +294,7 @@ class TransactionService:
             average_transaction=Decimal('0'),
             by_primary_category={},
             by_subcategory={},
+            by_card_type={},
             merchants=[]
         )
 
@@ -343,14 +352,14 @@ class TransactionService:
         )
         return updated_count > 0
 
-    def get_categories(self, date_range: DateRange, category: Optional[str] = None, subcategory: Optional[str] = None, min_confidence: float = 0.0, include_excluded: bool = True) -> dict:
+    def get_categories(self, date_range: DateRange, categories: Optional[List[dict]] = None, category: Optional[str] = None, subcategory: Optional[str] = None, min_confidence: float = 0.0, include_excluded: bool = True) -> dict:
         """Get categories efficiently from database"""
         return TransactionCrud.get_categories(
-            self.db, date_range, category, subcategory, min_confidence, include_excluded
+            self.db, date_range, categories, category, subcategory, min_confidence, include_excluded
         )
 
-    def get_transaction_count(self, date_range: DateRange, category: Optional[str] = None, subcategory: Optional[str] = None, min_confidence: float = 0.0, include_excluded: bool = True) -> int:
+    def get_transaction_count(self, date_range: DateRange, categories: Optional[List[dict]] = None, category: Optional[str] = None, subcategory: Optional[str] = None, min_confidence: float = 0.0, include_excluded: bool = True) -> int:
         """Get transaction count efficiently from database"""
         return TransactionCrud.get_transaction_count(
-            self.db, date_range, category, subcategory, min_confidence, include_excluded
+            self.db, date_range, categories, category, subcategory, min_confidence, include_excluded
         )

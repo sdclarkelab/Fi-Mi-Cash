@@ -59,6 +59,7 @@ class TransactionSummary(BaseModel):
     average_transaction: Decimal
     by_primary_category: Dict[str, CategorySummary]
     by_subcategory: Dict[str, CategorySummary]
+    by_card_type: Dict[str, CategorySummary]
     merchants: List[str]
 
     class Config:

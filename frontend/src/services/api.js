@@ -24,6 +24,7 @@ api.interceptors.response.use(
 export const fetchTransactions = async ({
   startDate,
   endDate,
+  categories,
   category,
   subcategory,
   minConfidence = 0.0,
@@ -36,8 +37,19 @@ export const fetchTransactions = async ({
       params.append("startDate", startDate.toISOString());
     if (endDate instanceof Date)
       params.append("endDate", endDate.toISOString());
-    if (category) params.append("category", category);
-    if (subcategory) params.append("subcategory", subcategory);
+    
+    // Handle multi-select categories (new format)
+    if (categories && Array.isArray(categories) && categories.length > 0) {
+      categories.forEach(item => {
+        params.append("categories", JSON.stringify(item));
+      });
+    }
+    // Fallback to legacy single category format
+    else if (category) {
+      params.append("category", category);
+      if (subcategory) params.append("subcategory", subcategory);
+    }
+    
     if (typeof minConfidence === "number")
       params.append("min_confidence", minConfidence.toString());
     if (typeof limit === "number")
@@ -128,6 +140,7 @@ export const deleteRule = async (merchant) => {
 export const getTransactionCount = async ({
   startDate,
   endDate,
+  categories,
   category,
   subcategory,
   minConfidence = 0.0,
@@ -138,8 +151,19 @@ export const getTransactionCount = async ({
       params.append("startDate", startDate.toISOString());
     if (endDate instanceof Date)
       params.append("endDate", endDate.toISOString());
-    if (category) params.append("category", category);
-    if (subcategory) params.append("subcategory", subcategory);
+    
+    // Handle multi-select categories (new format)
+    if (categories && Array.isArray(categories) && categories.length > 0) {
+      categories.forEach(item => {
+        params.append("categories", JSON.stringify(item));
+      });
+    }
+    // Fallback to legacy single category format
+    else if (category) {
+      params.append("category", category);
+      if (subcategory) params.append("subcategory", subcategory);
+    }
+    
     if (typeof minConfidence === "number")
       params.append("min_confidence", minConfidence.toString());
 

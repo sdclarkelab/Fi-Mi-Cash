@@ -9,8 +9,7 @@ const TransactionContext = createContext();
 export const TransactionProvider = ({ children }) => {
   // Use category filters only, date range comes from DateRangeContext
   const [filters, setFilters] = useState({
-    category: null,
-    subcategory: null,
+    categories: [], // Array of {category, subcategory} objects for multi-select
   });
 
   // Pagination state
@@ -58,11 +57,10 @@ export const TransactionProvider = ({ children }) => {
     enabled: !!appliedDateRange.startDate && !!appliedDateRange.endDate,
   });
 
-  const updateFilters = (category, subcategory = null) => {
+  const updateFilters = (categories) => {
     setFilters((prev) => ({
       ...prev,
-      category,
-      subcategory,
+      categories,
     }));
     // Reset pagination when filters change
     setPagination(prev => ({
