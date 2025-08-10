@@ -1,6 +1,7 @@
 import uuid
 from datetime import datetime
-from typing import Optional
+from typing import Optional, List
+import json
 
 from fastapi import APIRouter, Depends, Query, HTTPException, Body
 
@@ -17,6 +18,7 @@ router = APIRouter()
 async def get_transactions(
         start_date: datetime = Query(..., alias="startDate"),
         end_date: datetime = Query(..., alias="endDate"),
+        categories: List[str] = Query(default=[], description="JSON encoded category filters"),
         category: Optional[str] = None,
         subcategory: Optional[str] = None,
         min_confidence: float = Query(default=0.0, ge=0.0, le=1.0),
@@ -29,9 +31,18 @@ async def get_transactions(
     """
     date_range = DateRange(start_date=start_date, end_date=end_date)
     
+    # Parse categories if provided (new multi-select format)
+    parsed_categories = []
+    if categories:
+        try:
+            parsed_categories = [json.loads(cat_str) for cat_str in categories]
+        except (json.JSONDecodeError, TypeError):
+            raise HTTPException(status_code=400, detail="Invalid category format")
+    
     # Get transactions with pagination
     transactions = await service.get_transactions(
         date_range=date_range,
+        categories=parsed_categories if parsed_categories else None,
         category=category,
         subcategory=subcategory,
         min_confidence=min_confidence,
@@ -42,21 +53,23 @@ async def get_transactions(
 
     # Get summary and categories efficiently using separate queries
     summary = await service.get_summary(transactions)
-    categories = service.get_categories(
+    categories_data = service.get_categories(
         date_range=date_range,
+        categories=parsed_categories if parsed_categories else None,
         category=category,
         subcategory=subcategory,
         min_confidence=min_confidence,
         include_excluded=True
     )
 
-    return TransactionList(transactions=transactions, transaction_summary=summary, categories=categories)
+    return TransactionList(transactions=transactions, transaction_summary=summary, categories=categories_data)
 
 
 @router.get("/transactions/count")
 async def get_transaction_count(
         start_date: datetime = Query(..., alias="startDate"),
         end_date: datetime = Query(..., alias="endDate"),
+        categories: List[str] = Query(default=[], description="JSON encoded category filters"),
         category: Optional[str] = None,
         subcategory: Optional[str] = None,
         min_confidence: float = Query(default=0.0, ge=0.0, le=1.0),
@@ -66,8 +79,18 @@ async def get_transaction_count(
     Get total count of transactions matching filters.
     """
     date_range = DateRange(start_date=start_date, end_date=end_date)
+    
+    # Parse categories if provided (new multi-select format)
+    parsed_categories = []
+    if categories:
+        try:
+            parsed_categories = [json.loads(cat_str) for cat_str in categories]
+        except (json.JSONDecodeError, TypeError):
+            raise HTTPException(status_code=400, detail="Invalid category format")
+    
     count = service.get_transaction_count(
         date_range=date_range,
+        categories=parsed_categories if parsed_categories else None,
         category=category,
         subcategory=subcategory,
         min_confidence=min_confidence,

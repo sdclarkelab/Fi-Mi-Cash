@@ -33,6 +33,7 @@ class TransactionService:
     async def get_transactions(
             self,
             date_range: DateRange,
+            categories: Optional[List[dict]] = None,
             category: Optional[str] = None,
             subcategory: Optional[str] = None,
             min_confidence: float = 0.0,
@@ -49,7 +50,7 @@ class TransactionService:
 
         # Then retrieve transactions from database with filters
         db_transactions = TransactionCrud.get_transactions(
-            self.db, date_range, category, subcategory, min_confidence, include_excluded, limit, offset
+            self.db, date_range, categories, category, subcategory, min_confidence, include_excluded, limit, offset
         )
 
         # Convert DB models to Pydantic models
@@ -351,14 +352,14 @@ class TransactionService:
         )
         return updated_count > 0
 
-    def get_categories(self, date_range: DateRange, category: Optional[str] = None, subcategory: Optional[str] = None, min_confidence: float = 0.0, include_excluded: bool = True) -> dict:
+    def get_categories(self, date_range: DateRange, categories: Optional[List[dict]] = None, category: Optional[str] = None, subcategory: Optional[str] = None, min_confidence: float = 0.0, include_excluded: bool = True) -> dict:
         """Get categories efficiently from database"""
         return TransactionCrud.get_categories(
-            self.db, date_range, category, subcategory, min_confidence, include_excluded
+            self.db, date_range, categories, category, subcategory, min_confidence, include_excluded
         )
 
-    def get_transaction_count(self, date_range: DateRange, category: Optional[str] = None, subcategory: Optional[str] = None, min_confidence: float = 0.0, include_excluded: bool = True) -> int:
+    def get_transaction_count(self, date_range: DateRange, categories: Optional[List[dict]] = None, category: Optional[str] = None, subcategory: Optional[str] = None, min_confidence: float = 0.0, include_excluded: bool = True) -> int:
         """Get transaction count efficiently from database"""
         return TransactionCrud.get_transaction_count(
-            self.db, date_range, category, subcategory, min_confidence, include_excluded
+            self.db, date_range, categories, category, subcategory, min_confidence, include_excluded
         )

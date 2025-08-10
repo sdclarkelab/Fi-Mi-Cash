@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 from typing import List, Optional, Tuple
 
 from sqlalchemy.orm import Session
+from sqlalchemy import or_
 
 from app.config import get_settings
 from app.models.schemas import Transaction, DateRange
@@ -41,6 +42,7 @@ class TransactionCrud:
     def get_transactions(
             db: Session,
             date_range: Optional[DateRange] = None,
+            categories: Optional[List[dict]] = None,
             category: Optional[str] = None,
             subcategory: Optional[str] = None,
             min_confidence: float = 0.0,
@@ -56,10 +58,35 @@ class TransactionCrud:
             if date_range.end_date:
                 query = query.filter(TransactionModel.date <= date_range.end_date)
 
-        if category:
+        # Handle multi-select categories (new format)
+        if categories and len(categories) > 0:
+            category_conditions = []
+            for cat_filter in categories:
+                cat_name = cat_filter.get('category')
+                subcat_name = cat_filter.get('subcategory')
+                
+                if cat_name and subcat_name:
+                    # Both category and subcategory specified
+                    condition = (
+                        (TransactionModel.primary_category.ilike(f"%{cat_name}%")) &
+                        (TransactionModel.subcategory.ilike(f"%{subcat_name}%"))
+                    )
+                elif cat_name:
+                    # Only category specified
+                    condition = TransactionModel.primary_category.ilike(f"%{cat_name}%")
+                else:
+                    continue
+                    
+                category_conditions.append(condition)
+            
+            if category_conditions:
+                query = query.filter(or_(*category_conditions))
+        
+        # Fallback to legacy single category format
+        elif category:
             query = query.filter(TransactionModel.primary_category.ilike(f"%{category}%"))
 
-        if subcategory:
+        elif subcategory:
             query = query.filter(TransactionModel.subcategory.ilike(f"%{subcategory}%"))
 
         if min_confidence > 0:
@@ -116,6 +143,7 @@ class TransactionCrud:
     def get_categories(
             db: Session,
             date_range: Optional[DateRange] = None,
+            categories: Optional[List[dict]] = None,
             category: Optional[str] = None,
             subcategory: Optional[str] = None,
             min_confidence: float = 0.0,
@@ -159,6 +187,7 @@ class TransactionCrud:
     def get_transaction_count(
             db: Session,
             date_range: Optional[DateRange] = None,
+            categories: Optional[List[dict]] = None,
             category: Optional[str] = None,
             subcategory: Optional[str] = None,
             min_confidence: float = 0.0,
@@ -173,10 +202,35 @@ class TransactionCrud:
             if date_range.end_date:
                 query = query.filter(TransactionModel.date <= date_range.end_date)
 
-        if category:
+        # Handle multi-select categories (new format)
+        if categories and len(categories) > 0:
+            category_conditions = []
+            for cat_filter in categories:
+                cat_name = cat_filter.get('category')
+                subcat_name = cat_filter.get('subcategory')
+                
+                if cat_name and subcat_name:
+                    # Both category and subcategory specified
+                    condition = (
+                        (TransactionModel.primary_category.ilike(f"%{cat_name}%")) &
+                        (TransactionModel.subcategory.ilike(f"%{subcat_name}%"))
+                    )
+                elif cat_name:
+                    # Only category specified
+                    condition = TransactionModel.primary_category.ilike(f"%{cat_name}%")
+                else:
+                    continue
+                    
+                category_conditions.append(condition)
+            
+            if category_conditions:
+                query = query.filter(or_(*category_conditions))
+        
+        # Fallback to legacy single category format
+        elif category:
             query = query.filter(TransactionModel.primary_category.ilike(f"%{category}%"))
 
-        if subcategory:
+        elif subcategory:
             query = query.filter(TransactionModel.subcategory.ilike(f"%{subcategory}%"))
 
         if min_confidence > 0:
