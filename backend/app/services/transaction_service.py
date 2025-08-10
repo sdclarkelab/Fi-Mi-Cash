@@ -108,6 +108,7 @@ class TransactionService:
 
         primary_categories = defaultdict(lambda: self._empty_category_summary())
         subcategories = defaultdict(lambda: self._empty_category_summary())
+        card_types = defaultdict(lambda: self._empty_category_summary())
 
         for transaction in included_transactions:
             self._update_category_summary(
@@ -118,6 +119,11 @@ class TransactionService:
                 subcategories[f"{transaction.primary_category} - {transaction.subcategory}"],
                 transaction
             )
+            if transaction.card_type:
+                self._update_category_summary(
+                    card_types[transaction.card_type],
+                    transaction
+                )
 
         return TransactionSummary(
             total_spending=sum(t.amount for t in included_transactions),
@@ -125,6 +131,7 @@ class TransactionService:
             average_transaction=sum(t.amount for t in included_transactions) / len(transactions),
             by_primary_category=dict(primary_categories),
             by_subcategory=dict(subcategories),
+            by_card_type=dict(card_types),
             merchants=list(set(t.merchant for t in included_transactions))
         )
 
@@ -286,6 +293,7 @@ class TransactionService:
             average_transaction=Decimal('0'),
             by_primary_category={},
             by_subcategory={},
+            by_card_type={},
             merchants=[]
         )
 
