@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, Query, HTTPException, Body
 
 from app.api.api_v1.dependencies import get_transaction_service
 from app.models.schemas import (
-    Transaction, DateRange, TransactionList
+    Transaction, DateRange, TransactionList, CreateTransactionRequest
 )
 from app.services.transaction_service import TransactionService
 
@@ -110,3 +110,16 @@ async def toggle_transaction_exclusion(
     if not transaction:
         raise HTTPException(status_code=404, detail="Transaction not found")
     return transaction
+
+
+@router.post("/transactions", response_model=Transaction)
+async def create_transaction(
+        request: CreateTransactionRequest,
+        service: TransactionService = Depends(get_transaction_service)
+):
+    """Create a new transaction manually"""
+    try:
+        transaction = await service.create_manual_transaction(request)
+        return transaction
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Failed to create transaction: {str(e)}")

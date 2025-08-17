@@ -173,3 +173,12 @@ export const getTransactionCount = async ({
     throw new Error(`Failed to fetch transaction count: ${error.message}`);
   }
 };
+
+export const createTransaction = async (transactionData) => {
+  try {
+    const { data } = await api.post("/transactions", transactionData);
+    return data;
+  } catch (error) {
+    throw new Error(`Failed to create transaction: ${error.message}`);
+  }
+};
