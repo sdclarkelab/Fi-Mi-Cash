@@ -13,7 +13,7 @@ from app.config import get_settings
 from app.db.crud import TransactionCrud, SyncInfoCrud
 from app.models.schemas import (
     Transaction, TransactionSummary, CategorySummary,
-    EmailMessage, DateRange
+    EmailMessage, DateRange, CreateTransactionRequest
 )
 from app.services.classifier_service import MerchantClassifier
 from app.services.gmail_service import GmailService
@@ -363,3 +363,25 @@ class TransactionService:
         return TransactionCrud.get_transaction_count(
             self.db, date_range, categories, category, subcategory, min_confidence, include_excluded
         )
+
+    async def create_manual_transaction(self, request: CreateTransactionRequest) -> Transaction:
+        """Create a manually entered transaction"""
+        transaction = Transaction(
+            id=uuid.uuid4(),
+            date=request.date,
+            amount=request.amount,
+            merchant=request.merchant,
+            primary_category=request.primary_category,
+            subcategory=request.subcategory,
+            confidence=1.0,
+            description=request.description or f"Manual entry: {request.merchant}",
+            excluded=False,
+            original_currency="JMD",
+            original_amount=request.amount,
+            exchange_rate=None,
+            exchange_rate_date=None,
+            card_type=request.card_type
+        )
+        
+        TransactionCrud.create_transaction(self.db, transaction)
+        return transaction

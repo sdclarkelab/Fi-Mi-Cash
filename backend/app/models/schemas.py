@@ -91,3 +91,13 @@ class ClassificationRuleResponse(ClassificationRule):
 
 class ClassificationRulesResponse(BaseModel):
     rules: list[ClassificationRule]
+
+
+class CreateTransactionRequest(BaseModel):
+    date: datetime
+    amount: Decimal = Field(decimal_places=2, gt=0)
+    merchant: str = Field(min_length=1, max_length=255)
+    primary_category: str = Field(min_length=1, max_length=255)
+    subcategory: str = Field(min_length=1, max_length=255)
+    card_type: str = Field(min_length=1, max_length=50)
+    description: Optional[str] = None
