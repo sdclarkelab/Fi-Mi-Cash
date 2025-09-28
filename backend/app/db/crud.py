@@ -31,7 +31,8 @@ class TransactionCrud:
             original_amount=transaction.original_amount,
             exchange_rate=transaction.exchange_rate,
             exchange_rate_date=transaction.exchange_rate_date,
-            card_type=transaction.card_type
+            card_type=transaction.card_type,
+            source=getattr(transaction, 'source', 'email')
         )
         db.add(db_transaction)
         db.commit()
@@ -240,6 +241,21 @@ class TransactionCrud:
             query = query.filter(TransactionModel.excluded == False)
 
         return query.count()
+
+    @staticmethod
+    def get_transaction_by_id(db: Session, transaction_id: uuid.UUID) -> Optional[TransactionModel]:
+        """Get a single transaction by ID"""
+        return db.query(TransactionModel).filter(TransactionModel.id == str(transaction_id)).first()
+
+    @staticmethod
+    def delete_transaction(db: Session, transaction_id: uuid.UUID) -> bool:
+        """Delete a transaction by ID"""
+        transaction = db.query(TransactionModel).filter(TransactionModel.id == str(transaction_id)).first()
+        if transaction:
+            db.delete(transaction)
+            db.commit()
+            return True
+        return False
 
 
 class SyncInfoCrud:

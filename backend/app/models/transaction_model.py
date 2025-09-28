@@ -26,3 +26,6 @@ class TransactionModel(Base):
     
     # Card information
     card_type = Column(String(50))  # Card type used for transaction
+    
+    # Source information
+    source = Column(String(20), default="email", nullable=False)  # "email" or "manual"

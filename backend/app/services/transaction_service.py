@@ -69,7 +69,8 @@ class TransactionService:
                 original_amount=Decimal(str(tx.original_amount)) if tx.original_amount else None,
                 exchange_rate=Decimal(str(tx.exchange_rate)) if tx.exchange_rate else None,
                 exchange_rate_date=tx.exchange_rate_date,
-                card_type=tx.card_type
+                card_type=tx.card_type,
+                source=tx.source or "email"
             ) for tx in db_transactions
         ]
 
@@ -258,7 +259,8 @@ class TransactionService:
                 original_amount=original_amount,
                 exchange_rate=exchange_rate,
                 exchange_rate_date=exchange_rate_date,
-                card_type=card_type
+                card_type=card_type,
+                source="email"
             )
         except Exception as e:
             logger.error(f"Error processing transaction: {str(e)}")
@@ -327,7 +329,8 @@ class TransactionService:
                 original_amount=Decimal(str(tx.original_amount)) if tx.original_amount else None,
                 exchange_rate=Decimal(str(tx.exchange_rate)) if tx.exchange_rate else None,
                 exchange_rate_date=tx.exchange_rate_date,
-                card_type=tx.card_type
+                card_type=tx.card_type,
+                source=tx.source or "email"
             )
         return None
 
@@ -380,8 +383,22 @@ class TransactionService:
             original_amount=request.amount,
             exchange_rate=None,
             exchange_rate_date=None,
-            card_type=request.card_type
+            card_type=request.card_type,
+            source="manual"
         )
         
         TransactionCrud.create_transaction(self.db, transaction)
         return transaction
+
+    async def delete_transaction(self, transaction_id: uuid.UUID) -> bool:
+        """Delete a transaction if it's manually created"""
+        # First get the transaction to check if it's manual
+        tx = TransactionCrud.get_transaction_by_id(self.db, transaction_id)
+        if not tx:
+            return False
+            
+        # Only allow deletion of manual transactions
+        if tx.source != "manual":
+            raise ValueError("Only manually created transactions can be deleted")
+            
+        return TransactionCrud.delete_transaction(self.db, transaction_id)

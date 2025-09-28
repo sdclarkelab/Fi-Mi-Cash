@@ -5,6 +5,7 @@ import LoadingSpinner from "./LoadingSpinner";
 import ErrorAlert from "./ErrorAlert";
 import { toggleTransactionExclusion as apiToggleExclusion } from "../services/api";
 import CategoryEditModal from "./CategoryEditModal";
+import DeleteConfirmationModal from "./DeleteConfirmationModal";
 import Pagination from "./Pagination";
 
 const TransactionList = () => {
@@ -21,6 +22,8 @@ const TransactionList = () => {
   const [updatingTransactionId, setUpdatingTransactionId] = useState(null);
   const [editingTransaction, setEditingTransaction] = useState(null);
   const [isCategoryModalOpen, setCategoryModalOpen] = useState(false);
+  const [deletingTransaction, setDeletingTransaction] = useState(null);
+  const [isDeleteModalOpen, setDeleteModalOpen] = useState(false);
 
   // Helper function to format card type for display
   const formatCardType = (cardType) => {
@@ -92,6 +95,15 @@ const TransactionList = () => {
     } catch (error) {
       console.error("Failed to update transaction category:", error);
     }
+  };
+
+  const handleDeleteTransaction = (transaction) => {
+    setDeletingTransaction(transaction);
+    setDeleteModalOpen(true);
+  };
+
+  const handleDeleteSuccess = async () => {
+    await refetch();
   };
 
   if (isLoading) {
@@ -277,7 +289,7 @@ const TransactionList = () => {
                       </div>
                     </td>
                     <td className="whitespace-nowrap px-3 py-4 text-sm text-center">
-                      <div className="flex space-x-2 justify-center">
+                      <div className="flex space-x-1 justify-center">
                         <button
                           onClick={() =>
                             toggleTransactionExclusion(
@@ -286,7 +298,7 @@ const TransactionList = () => {
                             )
                           }
                           disabled={updatingTransactionId === transaction.id}
-                          className={`px-3 py-1 rounded-md text-xs font-medium ${
+                          className={`px-2 py-1 rounded-md text-xs font-medium ${
                             transaction.excluded
                               ? "bg-red-100 text-red-800 hover:bg-red-200"
                               : "bg-green-100 text-green-800 hover:bg-green-200"
@@ -327,6 +339,15 @@ const TransactionList = () => {
                             "Include"
                           )}
                         </button>
+                        {transaction.source === "manual" && (
+                          <button
+                            onClick={() => handleDeleteTransaction(transaction)}
+                            className="px-2 py-1 rounded-md text-xs font-medium bg-red-100 text-red-800 hover:bg-red-200"
+                            title="Delete transaction"
+                          >
+                            Delete
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -353,6 +374,14 @@ const TransactionList = () => {
         transaction={editingTransaction}
         categories={categories}
         onSuccess={handleCategoryUpdate}
+      />
+
+      {/* Delete Confirmation Modal */}
+      <DeleteConfirmationModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => setDeleteModalOpen(false)}
+        transaction={deletingTransaction}
+        onSuccess={handleDeleteSuccess}
       />
     </div>
   );

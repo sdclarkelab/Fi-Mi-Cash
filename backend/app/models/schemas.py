@@ -39,6 +39,9 @@ class Transaction(BaseModel):
     
     # Card information
     card_type: Optional[str] = None
+    
+    # Source information
+    source: str = "email"
 
     class Config:
         json_encoders = {

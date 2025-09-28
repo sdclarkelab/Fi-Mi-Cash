@@ -123,3 +123,20 @@ async def create_transaction(
         return transaction
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Failed to create transaction: {str(e)}")
+
+
+@router.delete("/transactions/{transaction_id}")
+async def delete_transaction(
+        transaction_id: uuid.UUID,
+        service: TransactionService = Depends(get_transaction_service)
+):
+    """Delete a manually created transaction"""
+    try:
+        success = await service.delete_transaction(transaction_id)
+        if not success:
+            raise HTTPException(status_code=404, detail="Transaction not found")
+        return {"success": True}
+    except ValueError as e:
+        raise HTTPException(status_code=403, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to delete transaction: {str(e)}")

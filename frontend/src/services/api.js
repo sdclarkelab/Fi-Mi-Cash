@@ -182,3 +182,12 @@ export const createTransaction = async (transactionData) => {
     throw new Error(`Failed to create transaction: ${error.message}`);
   }
 };
+
+export const deleteTransaction = async (transactionId) => {
+  try {
+    const { data } = await api.delete(`/transactions/${transactionId}`);
+    return data;
+  } catch (error) {
+    throw new Error(`Failed to delete transaction: ${error.message}`);
+  }
+};
