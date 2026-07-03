@@ -46,7 +46,7 @@ docs/superpowers/plans/2026-07-02-current-state-roadmap.md.
 - [x] frontend/src/utils/formatters.js
 - [x] frontend/src/components/TransactionList.jsx
 - [x] frontend/src/components/TransactionSummary.jsx
-- [x] frontend/src/components/TopSpendingCategory.jsx (untracked WIP)
+- [x] frontend/src/components/TopSpendingCategory.jsx (tracked; committed dead code in c4d2569, see finding)
 - [x] frontend/src/components/CategoryFilter.jsx
 - [x] frontend/src/components/CategoryEditModal.jsx
 - [x] frontend/src/components/AddTransactionModal.jsx
@@ -290,7 +290,7 @@ docs/superpowers/plans/2026-07-02-current-state-roadmap.md.
 - **Impact:** Two parallel, inconsistent error-handling paths exist in the same file for what is otherwise one API surface. `getAllRules`'s error path is strictly worse than the other three `fetch`-based functions — it surfaces a generic HTTP status text ("Not Found", "Internal Server Error") instead of the backend's actual `detail` message, unlike every other write path in the app. Not a live crash, just weaker error messages and duplicated logic that will drift further if either path is touched.
 - **Verified:** Read `api.js` end-to-end (194 lines); confirmed the axios instance/interceptor (6-22) is used by every function that calls `api.get/post/patch/delete`, while `getAllRules`/`addRule`/`updateRule`/`deleteRule` (82-138) each call the ambient `fetch` directly and duplicate their own error handling, with `getAllRules` (82-88) the only one of the four that never inspects the response body on failure.
 
-### [Low/gap] Currency display hardcodes JMD; the original currency, amount, and exchange rate the backend returns are never shown
+### [Low] Currency display hardcodes JMD; the original currency, amount, and exchange rate the backend returns are never shown
 - **Location:** `frontend/src/utils/formatters.js:1-6` (`formatCurrency`); `backend/app/models/schemas.py:33-36` (`Transaction.original_currency`, `original_amount`, `exchange_rate`, `exchange_rate_date`); `frontend/src/components/DeleteConfirmationModal.jsx:72` (raw, unformatted amount)
 - **What:** `formatCurrency` (`formatters.js:1-6`) always formats with `new Intl.NumberFormat("en-US", { style: "currency", currency: "JMD" })` — there is no parameter or branch for any other currency. The backend's `Transaction` schema carries `original_currency`, `original_amount`, `exchange_rate`, and `exchange_rate_date` (`schemas.py:33-36`) specifically for transactions that were converted from USD, but `grep -rnE "original_amount|original_currency|exchange_rate" frontend/src` returns zero matches — none of these fields is read anywhere in the UI. Separately, `DeleteConfirmationModal.jsx:72` renders `JMD {transaction.amount}` as a raw string interpolation instead of calling `formatCurrency`, so that one dialog shows an unformatted number (no thousands separator, no fixed 2-decimal places) while every other view of the same data uses `formatCurrency`.
 - **Impact:** A user with a USD-denominated card transaction sees only the converted JMD figure everywhere in the app, with no way to see the original USD amount or the exchange rate that was applied — relevant given the separate Medium finding that the conversion rate can silently fall back to a hardcoded stale value when the currency API is down; the UI gives the user no signal to notice or question a bad conversion. The delete-confirmation inconsistency is purely cosmetic (a raw number vs. a formatted currency string in one dialog) but adds to the general lack of a single, consistent money-formatting path.
