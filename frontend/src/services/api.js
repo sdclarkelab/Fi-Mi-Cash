@@ -3,10 +3,13 @@ import axios from "axios";
 const API_BASE_URL =
   process.env.REACT_APP_API_BASE_URL || "http://localhost:8000/api/v1";
 
-const api = axios.create({
+const API_KEY = process.env.REACT_APP_API_KEY;
+
+export const api = axios.create({
   baseURL: API_BASE_URL,
   headers: {
     "Content-Type": "application/json",
+    "X-API-Key": API_KEY,
   },
 });
 
@@ -80,7 +83,9 @@ export const toggleTransactionExclusion = async (transactionId, excluded) => {
 
 // Category Rules API functions
 export const getAllRules = async () => {
-  const response = await fetch(`${API_BASE_URL}/rules`);
+  const response = await fetch(`${API_BASE_URL}/rules`, {
+    headers: { "X-API-Key": API_KEY },
+  });
   if (!response.ok) {
     throw new Error(`Failed to fetch rules: ${response.statusText}`);
   }
@@ -92,6 +97,7 @@ export const addRule = async (merchant, category, subcategory) => {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
+      "X-API-Key": API_KEY,
     },
     body: JSON.stringify({ merchant, category, subcategory }),
   });
@@ -109,6 +115,7 @@ export const updateRule = async (merchant, category, subcategory) => {
     method: "PUT",
     headers: {
       "Content-Type": "application/json",
+      "X-API-Key": API_KEY,
     },
     body: JSON.stringify({ merchant, category, subcategory }),
   });
@@ -126,6 +133,7 @@ export const deleteRule = async (merchant) => {
     `${API_BASE_URL}/rules/${encodeURIComponent(merchant)}`,
     {
       method: "DELETE",
+      headers: { "X-API-Key": API_KEY },
     }
   );
 
