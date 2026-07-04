@@ -17,7 +17,7 @@ pip install -r requirements.txt
 uvicorn app.main:app --reload --port 8000
 ```
 
-Backend tests: `cd backend && .venv/bin/python -m pytest tests -v` (dev deps: `pip install -r requirements-dev.txt`). There are no alembic migrations (despite what README.md says — tables are created via `Base.metadata.create_all()` at startup) and no configured linter.
+Backend tests: `cd backend && .venv/bin/python -m pytest tests -v` (dev deps: `pip install -r requirements-dev.txt`). There are no alembic migrations (despite what README.md says — tables are created via `Base.metadata.create_all()` at startup, followed by the small additive migrations in `backend/app/db/migrations.py`) and no configured linter.
 
 **Working directory matters**: `.env`, `transactions.db`, `token.json`, `credentials.json`, and `GMAIL_TOKEN_PATH` are all resolved relative to the process CWD. The existing runtime files live in `backend/app/`, so the server has historically been run with that as the working directory (PyCharm run config). If the app starts but can't find settings or creates a fresh empty DB, check the CWD first.
 

@@ -10,6 +10,7 @@ from app.config import get_settings
 from app.core.logger import logger
 from app.db.base_class import Base
 from app.db.database import engine
+from app.db.migrations import run_startup_migrations
 
 settings = get_settings()
 
@@ -22,6 +23,7 @@ async def lifespan(app: FastAPI):
     # Initialize database tables
     logger.info("Creating database tables if they don't exist")
     Base.metadata.create_all(bind=engine)
+    run_startup_migrations(engine)
 
     yield
 
