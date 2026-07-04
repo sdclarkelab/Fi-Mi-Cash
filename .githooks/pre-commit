@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+# Pre-commit guard for Fi-Mi-Cash: live secrets sit untracked in the working
+# tree (.env, credentials.json, token.json, transactions.db, rules JSON).
+# Layer 1 blocks them by path even under `git add -f`; layer 2 runs gitleaks
+# content scanning on everything staged.
+set -euo pipefail
+
+blocked_pattern='(^|/)\.env$|(^|/)credentials\.json$|(^|/)token\.json$|\.db$|(^|/)classification_rules\.json$'
+
+staged_files=$(git diff --cached --name-only --diff-filter=ACMR)
+
+if matches=$(printf '%s\n' "$staged_files" | grep -E "$blocked_pattern"); then
+    echo "COMMIT BLOCKED: sensitive file(s) staged:" >&2
+    printf '%s\n' "$matches" >&2
+    echo "Unstage with: git reset -- <file>" >&2
+    exit 1
+fi
+
+if command -v gitleaks >/dev/null 2>&1; then
+    gitleaks git --pre-commit --staged --redact
+else
+    echo "WARNING: gitleaks not installed (brew install gitleaks); content scan skipped." >&2
+fi
