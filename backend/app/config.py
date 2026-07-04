@@ -9,9 +9,11 @@ class Settings(BaseSettings):
     API_V1_STR: str = "/api/v1"
     PROJECT_NAME: str = "Transaction Analyzer API"
 
-    # Authentication
-    SECRET_KEY: str = "your-secret-key-here"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+    # Authentication — shared secret required on every API request (X-API-Key header)
+    API_KEY: str
+
+    # CORS
+    CORS_ORIGINS: List[str] = ["http://localhost:3000", "http://127.0.0.1:3000"]
 
     # External APIs
     OPENAI_API_KEY: str

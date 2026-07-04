@@ -1,8 +1,9 @@
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.api.api_v1.dependencies import verify_api_key
 from app.api.api_v1.routers.category_rules_router import router as category_rules_router
 from app.api.api_v1.routers.transactions_router import router as transactions_router
 from app.config import get_settings
@@ -34,20 +35,28 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# CORS middleware configuration
+# CORS: only the local frontend may call this API from a browser.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # TODO: Update this to only allow specific origins
-    allow_credentials=True,
+    allow_origins=settings.CORS_ORIGINS,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Include API router
-app.include_router(transactions_router, prefix=settings.API_V1_STR)
-app.include_router(category_rules_router, prefix=settings.API_V1_STR)
+# Include API router — every route requires the X-API-Key header
+app.include_router(
+    transactions_router,
+    prefix=settings.API_V1_STR,
+    dependencies=[Depends(verify_api_key)],
+)
+app.include_router(
+    category_rules_router,
+    prefix=settings.API_V1_STR,
+    dependencies=[Depends(verify_api_key)],
+)
 
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="127.0.0.1", port=8000)
