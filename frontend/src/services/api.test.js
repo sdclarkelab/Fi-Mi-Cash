@@ -43,9 +43,18 @@ describe("API key header", () => {
     process.env.REACT_APP_API_KEY = originalKey;
   });
 
-  it("sets X-API-Key as an axios default header", async () => {
-    const { api } = await import("./api");
-    expect(api.defaults.headers["X-API-Key"]).toBe("test-key");
+  it("passes X-API-Key to axios.create as a default header", async () => {
+    // jest.resetModules() in beforeEach clears the module registry, so the
+    // axios mock factory re-runs and produces a fresh `create` jest.fn().
+    // Re-import axios here (after resetModules, alongside api.js) to get the
+    // same mock instance that api.js actually calls.
+    const { default: freshAxios } = await import("axios");
+    await import("./api");
+    expect(freshAxios.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        headers: expect.objectContaining({ "X-API-Key": "test-key" }),
+      })
+    );
   });
 
   it("sends X-API-Key on rules fetch requests", async () => {
