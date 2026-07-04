@@ -182,6 +182,14 @@ class TransactionService:
                     transaction
                 )
 
+        top_spending_category = None
+        top_spending_category_amount = None
+        if primary_categories:
+            top_spending_category, top_summary = max(
+                primary_categories.items(), key=lambda item: item[1].total
+            )
+            top_spending_category_amount = top_summary.total
+
         return TransactionSummary(
             total_spending=sum(t.amount for t in included_transactions),
             transaction_count=len(included_transactions),
@@ -189,7 +197,9 @@ class TransactionService:
             by_primary_category=dict(primary_categories),
             by_subcategory=dict(subcategories),
             by_card_type=dict(card_types),
-            merchants=list(set(t.merchant for t in included_transactions))
+            merchants=list(set(t.merchant for t in included_transactions)),
+            top_spending_category=top_spending_category,
+            top_spending_category_amount=top_spending_category_amount,
         )
 
     async def _get_usd_to_jmd_rate(self, transaction_date: datetime) -> Decimal:

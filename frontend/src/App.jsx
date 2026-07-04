@@ -7,6 +7,7 @@ import Header from "./components/Header";
 import DateRangePicker from "./components/DateRangePicker";
 import TransactionList from "./components/TransactionList";
 import TransactionSummary from "./components/TransactionSummary";
+import TopSpendingCategory from "./components/TopSpendingCategory";
 import CategoryFilter from "./components/CategoryFilter";
 import AddTransactionModal from "./components/AddTransactionModal";
 
@@ -44,6 +45,9 @@ const AppContent = () => {
         </div>
 
         <div className="space-y-6">
+          <ErrorBoundary>
+            <TopSpendingCategory />
+          </ErrorBoundary>
           <ErrorBoundary>
             <TransactionSummary />
           </ErrorBoundary>

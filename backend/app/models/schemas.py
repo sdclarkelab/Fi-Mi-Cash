@@ -68,6 +68,8 @@ class TransactionSummary(BaseModel):
     by_subcategory: Dict[str, CategorySummary]
     by_card_type: Dict[str, CategorySummary]
     merchants: List[str]
+    top_spending_category: Optional[str] = None
+    top_spending_category_amount: Optional[Decimal] = None
 
     class Config:
         json_encoders = {
