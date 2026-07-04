@@ -218,3 +218,24 @@ export const deleteTransaction = async (transactionId) => {
     throw new Error(`Failed to delete transaction: ${error.message}`);
   }
 };
+
+export const getSyncStatus = async () => {
+  try {
+    const { data } = await api.get("/sync/status");
+    return data;
+  } catch (error) {
+    throw new Error(`Failed to fetch sync status: ${error.message}`);
+  }
+};
+
+export const triggerSync = async ({ startDate, endDate }) => {
+  try {
+    const { data } = await api.post("/sync", {
+      start_date: startDate instanceof Date ? startDate.toISOString() : startDate,
+      end_date: endDate instanceof Date ? endDate.toISOString() : endDate,
+    });
+    return data;
+  } catch (error) {
+    throw new Error(`Failed to sync: ${error.message}`);
+  }
+};

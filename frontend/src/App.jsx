@@ -9,6 +9,7 @@ import TransactionList from "./components/TransactionList";
 import TransactionSummary from "./components/TransactionSummary";
 import TopSpendingCategory from "./components/TopSpendingCategory";
 import CategoryFilter from "./components/CategoryFilter";
+import SyncControl from "./components/SyncControl";
 import AddTransactionModal from "./components/AddTransactionModal";
 
 const queryClient = new QueryClient({
@@ -33,7 +34,8 @@ const AppContent = () => {
       <main className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
         <div className="relative z-10 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
           <DateRangePicker />
-          <div className="flex gap-2">
+          <div className="flex gap-2 items-center">
+            <SyncControl />
             <CategoryFilter />
             <button
               onClick={() => setIsAddModalOpen(true)}
