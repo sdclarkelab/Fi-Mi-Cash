@@ -94,6 +94,7 @@ class GmailService:
             body = self._get_email_body(msg)
 
             return EmailMessage(
+                message_id=message_id,
                 subject=headers.get('subject', ''),
                 sender=headers.get('from', ''),
                 date=datetime.fromtimestamp(int(msg['internalDate']) / 1000),

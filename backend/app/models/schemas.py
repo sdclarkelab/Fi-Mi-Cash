@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field
 
 
 class EmailMessage(BaseModel):
+    message_id: str
     subject: str
     sender: str
     date: datetime
