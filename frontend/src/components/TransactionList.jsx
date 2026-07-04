@@ -79,21 +79,12 @@ const TransactionList = () => {
     setCategoryModalOpen(true);
   };
 
-  const handleCategoryUpdate = async (
-    transactionId,
-    category,
-    subcategory,
-    createRule
-  ) => {
+  const handleCategoryUpdate = async () => {
+    // Persistence happens inside CategoryEditModal; refresh to show it.
     try {
-      // This would call a new API endpoint to update a transaction's category
-      // We don't have this function yet, but it would be something like:
-      // await updateTransactionCategory(transactionId, category, subcategory);
-
-      // For now, just refetch data to get changes applied by the rule
       await refetch();
     } catch (error) {
-      console.error("Failed to update transaction category:", error);
+      console.error("Failed to refresh transactions after category update:", error);
     }
   };
 

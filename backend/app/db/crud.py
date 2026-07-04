@@ -122,6 +122,21 @@ class TransactionCrud:
             db.refresh(transaction)
         return transaction
 
+    @staticmethod
+    def update_transaction_category(
+            db: Session,
+            transaction_id: uuid.UUID,
+            primary_category: str,
+            subcategory: str
+    ) -> Optional[TransactionModel]:
+        transaction = db.query(TransactionModel).filter(TransactionModel.id == str(transaction_id)).first()
+        if transaction:
+            transaction.primary_category = primary_category
+            transaction.subcategory = subcategory
+            db.commit()
+            db.refresh(transaction)
+        return transaction
+
     # app/crud/transaction.py
     @staticmethod
     def update_transactions_by_merchant(db: Session, merchant: str, category: str, subcategory: str):

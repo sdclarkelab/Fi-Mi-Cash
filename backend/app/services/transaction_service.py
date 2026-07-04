@@ -54,25 +54,7 @@ class TransactionService:
         )
 
         # Convert DB models to Pydantic models
-        return [
-            Transaction(
-                id=uuid.UUID(tx.id),
-                date=tx.date,
-                amount=Decimal(str(tx.amount)),
-                merchant=tx.merchant,
-                primary_category=tx.primary_category,
-                subcategory=tx.subcategory,
-                confidence=tx.confidence,
-                description=tx.description,
-                excluded=tx.excluded,
-                original_currency=tx.original_currency,
-                original_amount=Decimal(str(tx.original_amount)) if tx.original_amount else None,
-                exchange_rate=Decimal(str(tx.exchange_rate)) if tx.exchange_rate else None,
-                exchange_rate_date=tx.exchange_rate_date,
-                card_type=tx.card_type,
-                source=tx.source or "email"
-            ) for tx in db_transactions
-        ]
+        return [self._to_transaction(tx) for tx in db_transactions]
 
     async def _sync_transactions(self, date_range: DateRange):
         """Fetch transactions from Gmail and store in SQLite if not already present"""
@@ -315,24 +297,43 @@ class TransactionService:
         """Set the exclusion status of a transaction"""
         tx = TransactionCrud.set_exclusion(self.db, transaction_id, excluded)
         if tx:
-            return Transaction(
-                id=uuid.UUID(tx.id),
-                date=tx.date,
-                amount=Decimal(str(tx.amount)),
-                merchant=tx.merchant,
-                primary_category=tx.primary_category,
-                subcategory=tx.subcategory,
-                confidence=tx.confidence,
-                description=tx.description,
-                excluded=tx.excluded,
-                original_currency=tx.original_currency,
-                original_amount=Decimal(str(tx.original_amount)) if tx.original_amount else None,
-                exchange_rate=Decimal(str(tx.exchange_rate)) if tx.exchange_rate else None,
-                exchange_rate_date=tx.exchange_rate_date,
-                card_type=tx.card_type,
-                source=tx.source or "email"
-            )
+            return self._to_transaction(tx)
         return None
+
+    async def set_transaction_category(
+            self,
+            transaction_id: uuid.UUID,
+            primary_category: str,
+            subcategory: str
+    ) -> Optional[Transaction]:
+        """Set the category of a single transaction"""
+        tx = TransactionCrud.update_transaction_category(
+            self.db, transaction_id, primary_category, subcategory
+        )
+        if tx:
+            return self._to_transaction(tx)
+        return None
+
+    @staticmethod
+    def _to_transaction(tx) -> Transaction:
+        """Convert a TransactionModel row to the Pydantic Transaction schema"""
+        return Transaction(
+            id=uuid.UUID(tx.id),
+            date=tx.date,
+            amount=Decimal(str(tx.amount)),
+            merchant=tx.merchant,
+            primary_category=tx.primary_category,
+            subcategory=tx.subcategory,
+            confidence=tx.confidence,
+            description=tx.description,
+            excluded=tx.excluded,
+            original_currency=tx.original_currency,
+            original_amount=Decimal(str(tx.original_amount)) if tx.original_amount else None,
+            exchange_rate=Decimal(str(tx.exchange_rate)) if tx.exchange_rate else None,
+            exchange_rate_date=tx.exchange_rate_date,
+            card_type=tx.card_type,
+            source=tx.source or "email"
+        )
 
     async def _should_sync_transactions(self, date_range: DateRange = None) -> bool:
         """Determine if we need to sync transactions from Gmail using gap-based logic"""

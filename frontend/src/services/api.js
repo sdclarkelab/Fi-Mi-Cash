@@ -81,6 +81,25 @@ export const toggleTransactionExclusion = async (transactionId, excluded) => {
   }
 };
 
+export const updateTransactionCategory = async (
+  transactionId,
+  primaryCategory,
+  subcategory
+) => {
+  try {
+    const { data } = await api.patch(
+      `/transactions/${transactionId}/category`,
+      {
+        primary_category: primaryCategory,
+        subcategory: subcategory,
+      }
+    );
+    return data;
+  } catch (error) {
+    throw new Error(`Failed to update transaction category: ${error.message}`);
+  }
+};
+
 // Category Rules API functions
 export const getAllRules = async () => {
   const response = await fetch(`${API_BASE_URL}/rules`, {

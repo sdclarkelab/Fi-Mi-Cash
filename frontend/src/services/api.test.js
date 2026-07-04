@@ -68,6 +68,19 @@ describe("API key header", () => {
     );
   });
 
+  it("PATCHes a single transaction's category", async () => {
+    const { default: freshAxios } = await import("axios");
+    const { updateTransactionCategory } = await import("./api");
+    const instance = freshAxios.create.mock.results[0].value;
+
+    await updateTransactionCategory("abc-123", "Entertainment", "Streaming");
+
+    expect(instance.patch).toHaveBeenCalledWith(
+      "/transactions/abc-123/category",
+      { primary_category: "Entertainment", subcategory: "Streaming" }
+    );
+  });
+
   it("sends X-API-Key on rule delete requests", async () => {
     const { deleteRule } = await import("./api");
     await deleteRule("Some Merchant");

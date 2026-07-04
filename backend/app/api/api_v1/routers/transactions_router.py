@@ -112,6 +112,20 @@ async def toggle_transaction_exclusion(
     return transaction
 
 
+@router.patch("/transactions/{transaction_id}/category", response_model=Transaction)
+async def update_transaction_category(
+        transaction_id: uuid.UUID,
+        primary_category: str = Body(..., embed=True),
+        subcategory: str = Body(default="", embed=True),
+        service: TransactionService = Depends(get_transaction_service)
+):
+    """Update the category of a single transaction without touching merchant rules"""
+    transaction = await service.set_transaction_category(transaction_id, primary_category, subcategory)
+    if not transaction:
+        raise HTTPException(status_code=404, detail="Transaction not found")
+    return transaction
+
+
 @router.post("/transactions", response_model=Transaction)
 async def create_transaction(
         request: CreateTransactionRequest,
