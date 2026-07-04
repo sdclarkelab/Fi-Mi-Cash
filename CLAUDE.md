@@ -44,7 +44,7 @@ The core design: transactions are **pulled from Gmail lazily on read**. `GET /ap
 
 Layering in `backend/app/`:
 
-- `api/api_v1/routers/` — `transactions_router.py` (list/count/create/delete/toggle-exclude) and `category_rules_router.py` (CRUD for classification rules). Wired in `main.py` under `/api/v1`.
+- `api/api_v1/routers/` — `transactions_router.py` (list/count/create/delete/toggle-exclude), `category_rules_router.py` (CRUD for classification rules), and `sync_router.py` (sync status + manual force-sync). Wired in `main.py` under `/api/v1`.
 - `api/api_v1/dependencies.py` — DI: builds `TransactionService(GmailService, MerchantClassifier, db)` per request; the classifier is a cached singleton.
 - `services/` — the meat:
   - `transaction_service.py` — orchestrates sync, email parsing, filtering, and computes `TransactionSummary` (per-category, per-subcategory, per-card-type aggregates) in Python, not SQL.

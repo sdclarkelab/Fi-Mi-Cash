@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.api_v1.dependencies import verify_api_key
 from app.api.api_v1.routers.category_rules_router import router as category_rules_router
+from app.api.api_v1.routers.sync_router import router as sync_router
 from app.api.api_v1.routers.transactions_router import router as transactions_router
 from app.config import get_settings
 from app.core.logger import logger
@@ -54,6 +55,11 @@ app.include_router(
 )
 app.include_router(
     category_rules_router,
+    prefix=settings.API_V1_STR,
+    dependencies=[Depends(verify_api_key)],
+)
+app.include_router(
+    sync_router,
     prefix=settings.API_V1_STR,
     dependencies=[Depends(verify_api_key)],
 )
