@@ -44,6 +44,9 @@ class Transaction(BaseModel):
     # Source information
     source: str = "email"
 
+    # Gmail message id for email-synced transactions (dedup key); None for manual entries
+    email_message_id: Optional[str] = None
+
     class Config:
         json_encoders = {
             Decimal: lambda v: float(v)

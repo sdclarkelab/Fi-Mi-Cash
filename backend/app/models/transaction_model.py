@@ -1,6 +1,6 @@
 import uuid
 
-from sqlalchemy import Column, String, DateTime, Numeric, Float, Boolean, Date
+from sqlalchemy import Column, String, DateTime, Numeric, Float, Boolean, Date, Index
 
 from app.db.base_class import Base
 
@@ -29,3 +29,15 @@ class TransactionModel(Base):
     
     # Source information
     source = Column(String(20), default="email", nullable=False)  # "email" or "manual"
+
+    # Gmail message id for email-synced rows; NULL for manual and pre-migration rows
+    email_message_id = Column(String)
+
+    __table_args__ = (
+        Index(
+            "ix_transactions_email_message_id",
+            "email_message_id",
+            unique=True,
+            sqlite_where=email_message_id.isnot(None),
+        ),
+    )

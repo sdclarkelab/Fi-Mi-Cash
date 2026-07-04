@@ -242,7 +242,8 @@ class TransactionService:
                 exchange_rate=exchange_rate,
                 exchange_rate_date=exchange_rate_date,
                 card_type=card_type,
-                source="email"
+                source="email",
+                email_message_id=email.message_id
             )
         except Exception as e:
             logger.error(f"Error processing transaction: {str(e)}")
@@ -332,7 +333,8 @@ class TransactionService:
             exchange_rate=Decimal(str(tx.exchange_rate)) if tx.exchange_rate else None,
             exchange_rate_date=tx.exchange_rate_date,
             card_type=tx.card_type,
-            source=tx.source or "email"
+            source=tx.source or "email",
+            email_message_id=tx.email_message_id
         )
 
     async def _should_sync_transactions(self, date_range: DateRange = None) -> bool:

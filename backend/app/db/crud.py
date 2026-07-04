@@ -32,7 +32,8 @@ class TransactionCrud:
             exchange_rate=transaction.exchange_rate,
             exchange_rate_date=transaction.exchange_rate_date,
             card_type=transaction.card_type,
-            source=getattr(transaction, 'source', 'email')
+            source=getattr(transaction, 'source', 'email'),
+            email_message_id=transaction.email_message_id
         )
         db.add(db_transaction)
         db.commit()
