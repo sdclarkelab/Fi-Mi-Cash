@@ -3,27 +3,34 @@ import { formatCurrency, formatDate } from "../utils/formatters";
 import { useTransactionContext } from "../context/TransactionContext";
 import LoadingSpinner from "./LoadingSpinner";
 import ErrorAlert from "./ErrorAlert";
-import { toggleTransactionExclusion as apiToggleExclusion } from "../services/api";
+import {
+  toggleTransactionExclusion as apiToggleExclusion,
+  fetchTransactions,
+} from "../services/api";
+import { buildTransactionsCsv } from "../utils/csv";
+import { useDateRange } from "../context/DateRangeContext";
 import CategoryEditModal from "./CategoryEditModal";
 import DeleteConfirmationModal from "./DeleteConfirmationModal";
 import Pagination from "./Pagination";
 
 const TransactionList = () => {
-  const { 
-    filters, 
-    transactionData, 
-    isLoading, 
-    error, 
-    refetch, 
-    pagination, 
-    goToPage, 
-    totalCount 
+  const {
+    filters,
+    transactionData,
+    isLoading,
+    error,
+    refetch,
+    pagination,
+    goToPage,
+    totalCount
   } = useTransactionContext();
+  const { appliedDateRange } = useDateRange();
   const [updatingTransactionId, setUpdatingTransactionId] = useState(null);
   const [editingTransaction, setEditingTransaction] = useState(null);
   const [isCategoryModalOpen, setCategoryModalOpen] = useState(false);
   const [deletingTransaction, setDeletingTransaction] = useState(null);
   const [isDeleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   // Helper function to format card type for display
   const formatCardType = (cardType) => {
@@ -97,6 +104,32 @@ const TransactionList = () => {
     await refetch();
   };
 
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      const data = await fetchTransactions({
+        ...filters,
+        startDate: appliedDateRange.startDate,
+        endDate: appliedDateRange.endDate,
+        limit: 1000,
+        offset: 0,
+      });
+      const csv = buildTransactionsCsv(data.transactions || []);
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      const day = (d) => d.toISOString().slice(0, 10);
+      link.href = url;
+      link.download = `fi-mi-cash-${day(appliedDateRange.startDate)}-${day(appliedDateRange.endDate)}.csv`;
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error("Failed to export CSV:", error.message);
+    } finally {
+      setExporting(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="mt-8 flex justify-center">
@@ -154,6 +187,15 @@ const TransactionList = () => {
               {filters.category && ` in ${filters.category}`}
               {filters.subcategory && ` - ${filters.subcategory}`}.
             </p>
+          </div>
+          <div className="mt-4 sm:mt-0 sm:ml-16 sm:flex-none">
+            <button
+              onClick={handleExport}
+              disabled={exporting}
+              className="bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 px-4 py-2 rounded-md text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+            >
+              {exporting ? "Exporting…" : "Export CSV"}
+            </button>
           </div>
         </div>
 
