@@ -15,9 +15,9 @@ from app.services.transaction_service import TransactionService
 _api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
 
 
-async def verify_api_key(api_key: str = Security(_api_key_header)) -> None:
+async def verify_api_key(api_key: str | None = Security(_api_key_header)) -> None:
     settings = get_settings()
-    if api_key is None or not secrets.compare_digest(api_key, settings.API_KEY):
+    if api_key is None or not secrets.compare_digest(api_key.encode("utf-8"), settings.API_KEY.encode("utf-8")):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or missing API key",
