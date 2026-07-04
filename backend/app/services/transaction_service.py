@@ -6,6 +6,7 @@ from datetime import datetime
 from decimal import Decimal
 from typing import List, Optional
 
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.logger import logger
@@ -86,7 +87,12 @@ class TransactionService:
 
                 # Legacy fallback: rows synced before email_message_id existed
                 if not TransactionCrud.transaction_exists(self.db, transaction):
-                    TransactionCrud.create_transaction(self.db, transaction)
+                    try:
+                        TransactionCrud.create_transaction(self.db, transaction)
+                    except IntegrityError:
+                        # A concurrent sync stored this email between our
+                        # dedup check and the insert — already stored, move on.
+                        self.db.rollback()
 
             if failed_dates:
                 logger.error(

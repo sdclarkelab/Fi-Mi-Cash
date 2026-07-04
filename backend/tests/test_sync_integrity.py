@@ -177,3 +177,41 @@ def test_mixed_gaps_marks_only_the_clean_one(db_session):
     assert sync_info.start_date == datetime(2026, 6, 14)
     assert sync_info.end_date == datetime(2026, 6, 20)
     assert len(TransactionCrud.get_transactions(db_session)) == 1
+
+
+def test_concurrent_sync_duplicate_insert_is_swallowed(db_session, monkeypatch):
+    # First sync stores "m1" normally.
+    service = make_service(db_session, [[make_email("m1")]])
+    asyncio.run(service._sync_transactions(RANGE))
+    assert len(TransactionCrud.get_transactions(db_session)) == 1
+
+    # Simulate a second, overlapping/concurrent sync whose dedup pre-checks
+    # both miss (e.g. raced against another session that stored "m1" between
+    # the check and the insert) and whose Gmail fetch returns "m1" again.
+    monkeypatch.setattr(
+        TransactionCrud, "transaction_exists_by_message_id",
+        staticmethod(lambda db, mid: False),
+    )
+    monkeypatch.setattr(
+        TransactionCrud, "transaction_exists",
+        staticmethod(lambda db, transaction: False),
+    )
+
+    wider = DateRange(
+        start_date=datetime(2026, 6, 10), end_date=datetime(2026, 6, 20)
+    )
+    service.gmail_service.batches = [[make_email("m1")]]
+
+    # Must not raise IntegrityError out of _sync_transactions.
+    asyncio.run(service._sync_transactions(wider))
+
+    # Still exactly one row for "m1" — duplicate insert was rejected by the
+    # unique partial index and swallowed, not double-stored.
+    rows = TransactionCrud.get_transactions(db_session)
+    assert len(rows) == 1
+    assert rows[0].email_message_id == "m1"
+
+    # The gap was otherwise clean, so it should still be marked synced.
+    sync_info = SyncInfoCrud.get_last_sync(db_session)
+    assert sync_info.start_date == datetime(2026, 6, 10)
+    assert sync_info.end_date == datetime(2026, 6, 20)
