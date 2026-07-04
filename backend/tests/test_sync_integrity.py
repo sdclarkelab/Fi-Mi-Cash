@@ -8,8 +8,8 @@ from sqlalchemy.pool import StaticPool
 
 from app.db.base_class import Base
 from app.db.crud import SyncInfoCrud, TransactionCrud
-from app.models.schemas import DateRange, EmailMessage, MerchantCategory
-from app.services.transaction_service import TransactionService
+from app.models.schemas import DateRange
+from sync_fakes import make_email, make_service
 
 engine = create_engine(
     "sqlite://",
@@ -28,66 +28,9 @@ def db_session():
     Base.metadata.drop_all(bind=engine)
 
 
-class FakeGmailService:
-    """Returns one batch of emails per get_messages call, in order."""
-
-    def __init__(self, batches):
-        self.batches = list(batches)
-        self.queries = []
-
-    def get_messages(self, query):
-        self.queries.append(query)
-        return self.batches.pop(0) if self.batches else []
-
-
-class FakeClassifier:
-    def __init__(self):
-        self.calls = []
-
-    async def classify_merchant(self, merchant):
-        self.calls.append(merchant)
-        return MerchantCategory(
-            primary_category="Food & Dining",
-            subcategory="Groceries",
-            confidence=0.9,
-            description="grocery store",
-        )
-
-
-def make_email(
-    message_id,
-    merchant="HI-LO GROCERY",
-    amount="1,500.00",
-    date=datetime(2026, 6, 15, 12, 30),
-    parseable=True,
-):
-    if parseable:
-        body = (
-            f"Transaction Approved JMD {amount} "
-            f"Merchant</div></td><td><div>{merchant}</div>"
-        )
-    else:
-        body = "Transaction Approved - a template the regexes cannot parse"
-    return EmailMessage(
-        message_id=message_id,
-        subject="Transaction Approved",
-        sender="no-reply-ncbcardalerts@jncb.com",
-        date=date,
-        body=body,
-    )
-
-
 RANGE = DateRange(
     start_date=datetime(2026, 6, 14), end_date=datetime(2026, 6, 16)
 )
-
-
-def make_service(db, batches):
-    return TransactionService(
-        gmail_service=FakeGmailService(batches),
-        classifier=FakeClassifier(),
-        db=db,
-    )
 
 
 def test_clean_gap_stores_all_and_marks_synced(db_session):

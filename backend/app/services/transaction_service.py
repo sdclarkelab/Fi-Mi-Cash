@@ -70,29 +70,7 @@ class TransactionService:
             query = self._build_gmail_query(gap)
             emails = self.gmail_service.get_messages(query)
 
-            failed_dates = []
-            for email in emails:
-                if TransactionCrud.transaction_exists_by_message_id(self.db, email.message_id):
-                    continue
-
-                try:
-                    transaction = await self._parse_transaction(email)
-                except Exception as e:
-                    logger.error(f"Unexpected error processing email dated {email.date}: {e}")
-                    transaction = None
-
-                if transaction is None:
-                    failed_dates.append(email.date)
-                    continue
-
-                # Legacy fallback: rows synced before email_message_id existed
-                if not TransactionCrud.transaction_exists(self.db, transaction):
-                    try:
-                        TransactionCrud.create_transaction(self.db, transaction)
-                    except IntegrityError:
-                        # A concurrent sync stored this email between our
-                        # dedup check and the insert — already stored, move on.
-                        self.db.rollback()
+            _, _, failed_dates = await self._process_emails(emails)
 
             if failed_dates:
                 logger.error(
@@ -102,6 +80,46 @@ class TransactionService:
                 )
             else:
                 SyncInfoCrud.update_last_sync(self.db, gap.start_date, gap.end_date)
+
+    async def _process_emails(self, emails) -> tuple:
+        """Shared per-email ingest pipeline for lazy and forced syncs.
+
+        Returns (stored, skipped, failed_dates). Skipped counts emails already
+        stored — matched by message id, by a legacy pre-migration row, or by
+        losing a duplicate-insert race to a concurrent sync.
+        """
+        stored = 0
+        skipped = 0
+        failed_dates = []
+        for email in emails:
+            if TransactionCrud.transaction_exists_by_message_id(self.db, email.message_id):
+                skipped += 1
+                continue
+
+            try:
+                transaction = await self._parse_transaction(email)
+            except Exception as e:
+                logger.error(f"Unexpected error processing email dated {email.date}: {e}")
+                transaction = None
+
+            if transaction is None:
+                failed_dates.append(email.date)
+                continue
+
+            # Legacy fallback: rows synced before email_message_id existed
+            if TransactionCrud.transaction_exists(self.db, transaction):
+                skipped += 1
+                continue
+
+            try:
+                TransactionCrud.create_transaction(self.db, transaction)
+                stored += 1
+            except IntegrityError:
+                # A concurrent sync stored this email between our dedup
+                # check and the insert — already stored, move on.
+                self.db.rollback()
+                skipped += 1
+        return stored, skipped, failed_dates
 
     async def get_summary(
             self,
