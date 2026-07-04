@@ -14,7 +14,7 @@ from app.config import get_settings
 from app.db.crud import TransactionCrud, SyncInfoCrud
 from app.models.schemas import (
     Transaction, TransactionSummary, CategorySummary,
-    EmailMessage, DateRange, CreateTransactionRequest
+    EmailMessage, DateRange, CreateTransactionRequest, SyncResult
 )
 from app.services.classifier_service import MerchantClassifier
 from app.services.gmail_service import GmailService
@@ -120,6 +120,36 @@ class TransactionService:
                 self.db.rollback()
                 skipped += 1
         return stored, skipped, failed_dates
+
+    async def force_sync(self, date_range: DateRange) -> SyncResult:
+        """Re-fetch a date range from Gmail regardless of sync_info coverage.
+
+        Message-id dedup makes a forced re-fetch safe and cheap; the range is
+        marked synced only when every email parsed (same contract as the
+        lazy path).
+        """
+        query = self._build_gmail_query(date_range)
+        emails = self.gmail_service.get_messages(query)
+
+        stored, skipped, failed_dates = await self._process_emails(emails)
+
+        if failed_dates:
+            logger.error(
+                f"{len(failed_dates)} email(s) failed to parse in forced sync "
+                f"{date_range.start_date}..{date_range.end_date} "
+                f"(email dates: {failed_dates}); range not marked synced"
+            )
+        else:
+            SyncInfoCrud.update_last_sync(self.db, date_range.start_date, date_range.end_date)
+
+        sync_info = SyncInfoCrud.get_last_sync(self.db)
+        return SyncResult(
+            fetched=len(emails),
+            stored=stored,
+            skipped=skipped,
+            failed=len(failed_dates),
+            last_sync_date=sync_info.last_sync_date if sync_info else None,
+        )
 
     async def get_summary(
             self,

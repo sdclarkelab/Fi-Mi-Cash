@@ -108,3 +108,22 @@ class CreateTransactionRequest(BaseModel):
     subcategory: str = Field(min_length=1, max_length=255)
     card_type: str = Field(min_length=1, max_length=50)
     description: Optional[str] = None
+
+
+class SyncStatus(BaseModel):
+    last_sync_date: Optional[datetime] = None
+    synced_start_date: Optional[datetime] = None
+    synced_end_date: Optional[datetime] = None
+
+
+class SyncRequest(BaseModel):
+    start_date: datetime
+    end_date: datetime
+
+
+class SyncResult(BaseModel):
+    fetched: int
+    stored: int
+    skipped: int
+    failed: int
+    last_sync_date: Optional[datetime] = None
