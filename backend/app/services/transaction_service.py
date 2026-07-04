@@ -57,26 +57,45 @@ class TransactionService:
         return [self._to_transaction(tx) for tx in db_transactions]
 
     async def _sync_transactions(self, date_range: DateRange):
-        """Fetch transactions from Gmail and store in SQLite if not already present"""
-        # Only sync the gaps that haven't been synced yet
+        """Fetch transactions from Gmail and store in SQLite if not already present.
+
+        Each gap is marked synced only if every email in it parsed and stored;
+        a gap with failures stays unsynced so the next request retries it
+        (already-stored emails are skipped by message id, so retries are cheap).
+        """
         sync_gaps = SyncInfoCrud.get_sync_gaps(self.db, date_range)
-        
-        if not sync_gaps:
-            return  # No gaps to sync
-            
+
         for gap in sync_gaps:
             query = self._build_gmail_query(gap)
             emails = self.gmail_service.get_messages(query)
 
+            failed_dates = []
             for email in emails:
-                transaction = await self._parse_transaction(email)
-                if transaction and not TransactionCrud.transaction_exists(self.db, transaction):
+                if TransactionCrud.transaction_exists_by_message_id(self.db, email.message_id):
+                    continue
+
+                try:
+                    transaction = await self._parse_transaction(email)
+                except Exception as e:
+                    logger.error(f"Unexpected error processing email dated {email.date}: {e}")
+                    transaction = None
+
+                if transaction is None:
+                    failed_dates.append(email.date)
+                    continue
+
+                # Legacy fallback: rows synced before email_message_id existed
+                if not TransactionCrud.transaction_exists(self.db, transaction):
                     TransactionCrud.create_transaction(self.db, transaction)
 
-        # Update the sync info with the originally requested range
-        start_date = date_range.start_date if date_range else None
-        end_date = date_range.end_date if date_range else None
-        SyncInfoCrud.update_last_sync(self.db, start_date, end_date)
+            if failed_dates:
+                logger.error(
+                    f"{len(failed_dates)} email(s) failed to parse in sync range "
+                    f"{gap.start_date}..{gap.end_date} (email dates: {failed_dates}); "
+                    f"range left unsynced and will be retried on the next request"
+                )
+            else:
+                SyncInfoCrud.update_last_sync(self.db, gap.start_date, gap.end_date)
 
     async def get_summary(
             self,
