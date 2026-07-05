@@ -3,24 +3,35 @@ import { formatCurrency, formatDate } from "../utils/formatters";
 import { useTransactionContext } from "../context/TransactionContext";
 import LoadingSpinner from "./LoadingSpinner";
 import ErrorAlert from "./ErrorAlert";
-import { toggleTransactionExclusion as apiToggleExclusion } from "../services/api";
+import {
+  toggleTransactionExclusion as apiToggleExclusion,
+  fetchTransactions,
+} from "../services/api";
+import { buildTransactionsCsv } from "../utils/csv";
+import { useDateRange } from "../context/DateRangeContext";
 import CategoryEditModal from "./CategoryEditModal";
+import DeleteConfirmationModal from "./DeleteConfirmationModal";
 import Pagination from "./Pagination";
 
 const TransactionList = () => {
-  const { 
-    filters, 
-    transactionData, 
-    isLoading, 
-    error, 
-    refetch, 
-    pagination, 
-    goToPage, 
-    totalCount 
+  const {
+    filters,
+    transactionData,
+    isLoading,
+    error,
+    refetch,
+    pagination,
+    goToPage,
+    totalCount
   } = useTransactionContext();
+  const { appliedDateRange } = useDateRange();
   const [updatingTransactionId, setUpdatingTransactionId] = useState(null);
   const [editingTransaction, setEditingTransaction] = useState(null);
   const [isCategoryModalOpen, setCategoryModalOpen] = useState(false);
+  const [deletingTransaction, setDeletingTransaction] = useState(null);
+  const [isDeleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [exportMessage, setExportMessage] = useState(null);
 
   // Helper function to format card type for display
   const formatCardType = (cardType) => {
@@ -76,21 +87,52 @@ const TransactionList = () => {
     setCategoryModalOpen(true);
   };
 
-  const handleCategoryUpdate = async (
-    transactionId,
-    category,
-    subcategory,
-    createRule
-  ) => {
+  const handleCategoryUpdate = async () => {
+    // Persistence happens inside CategoryEditModal; refresh to show it.
     try {
-      // This would call a new API endpoint to update a transaction's category
-      // We don't have this function yet, but it would be something like:
-      // await updateTransactionCategory(transactionId, category, subcategory);
-
-      // For now, just refetch data to get changes applied by the rule
       await refetch();
     } catch (error) {
-      console.error("Failed to update transaction category:", error);
+      console.error("Failed to refresh transactions after category update:", error);
+    }
+  };
+
+  const handleDeleteTransaction = (transaction) => {
+    setDeletingTransaction(transaction);
+    setDeleteModalOpen(true);
+  };
+
+  const handleDeleteSuccess = async () => {
+    await refetch();
+  };
+
+  const handleExport = async () => {
+    setExporting(true);
+    setExportMessage(null);
+    try {
+      const data = await fetchTransactions({
+        ...filters,
+        startDate: appliedDateRange.startDate,
+        endDate: appliedDateRange.endDate,
+        limit: 1000,
+        offset: 0,
+      });
+      const csv = buildTransactionsCsv(data.transactions || []);
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      const day = (d) => d.toISOString().slice(0, 10);
+      link.href = url;
+      link.download = `fi-mi-cash-${day(appliedDateRange.startDate)}-${day(appliedDateRange.endDate)}.csv`;
+      link.click();
+      URL.revokeObjectURL(url);
+      if (totalCount > 1000) {
+        setExportMessage(`Exported first 1000 of ${totalCount} transactions`);
+      }
+    } catch (error) {
+      console.error("Failed to export CSV:", error.message);
+      setExportMessage(`Export failed: ${error.message}`);
+    } finally {
+      setExporting(false);
     }
   };
 
@@ -151,6 +193,18 @@ const TransactionList = () => {
               {filters.category && ` in ${filters.category}`}
               {filters.subcategory && ` - ${filters.subcategory}`}.
             </p>
+          </div>
+          <div className="mt-4 sm:mt-0 sm:ml-16 sm:flex-none flex items-center gap-3">
+            {exportMessage && (
+              <span className="text-sm text-amber-600">{exportMessage}</span>
+            )}
+            <button
+              onClick={handleExport}
+              disabled={exporting}
+              className="bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 px-4 py-2 rounded-md text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+            >
+              {exporting ? "Exporting…" : "Export CSV"}
+            </button>
           </div>
         </div>
 
@@ -277,7 +331,7 @@ const TransactionList = () => {
                       </div>
                     </td>
                     <td className="whitespace-nowrap px-3 py-4 text-sm text-center">
-                      <div className="flex space-x-2 justify-center">
+                      <div className="flex space-x-1 justify-center">
                         <button
                           onClick={() =>
                             toggleTransactionExclusion(
@@ -286,7 +340,7 @@ const TransactionList = () => {
                             )
                           }
                           disabled={updatingTransactionId === transaction.id}
-                          className={`px-3 py-1 rounded-md text-xs font-medium ${
+                          className={`px-2 py-1 rounded-md text-xs font-medium ${
                             transaction.excluded
                               ? "bg-red-100 text-red-800 hover:bg-red-200"
                               : "bg-green-100 text-green-800 hover:bg-green-200"
@@ -327,6 +381,15 @@ const TransactionList = () => {
                             "Include"
                           )}
                         </button>
+                        {transaction.source === "manual" && (
+                          <button
+                            onClick={() => handleDeleteTransaction(transaction)}
+                            className="px-2 py-1 rounded-md text-xs font-medium bg-red-100 text-red-800 hover:bg-red-200"
+                            title="Delete transaction"
+                          >
+                            Delete
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -353,6 +416,14 @@ const TransactionList = () => {
         transaction={editingTransaction}
         categories={categories}
         onSuccess={handleCategoryUpdate}
+      />
+
+      {/* Delete Confirmation Modal */}
+      <DeleteConfirmationModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => setDeleteModalOpen(false)}
+        transaction={deletingTransaction}
+        onSuccess={handleDeleteSuccess}
       />
     </div>
   );

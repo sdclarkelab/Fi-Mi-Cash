@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { addRule, updateRule } from "../services/api";
+import { addRule, updateTransactionCategory } from "../services/api";
 
 const CategoryEditModal = ({
   isOpen,
@@ -43,8 +43,16 @@ const CategoryEditModal = ({
 
     try {
       if (createRule) {
-        // Create or update a merchant classification rule
+        // Create or update a merchant classification rule; the backend
+        // retroactively re-categorizes all of this merchant's transactions.
         await addRule(transaction.merchant, primaryCategory, subcategory);
+      } else {
+        // Re-categorize just this transaction.
+        await updateTransactionCategory(
+          transaction.id,
+          primaryCategory,
+          subcategory
+        );
       }
 
       onSuccess(transaction.id, primaryCategory, subcategory, createRule);

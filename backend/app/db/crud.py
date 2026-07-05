@@ -31,7 +31,9 @@ class TransactionCrud:
             original_amount=transaction.original_amount,
             exchange_rate=transaction.exchange_rate,
             exchange_rate_date=transaction.exchange_rate_date,
-            card_type=transaction.card_type
+            card_type=transaction.card_type,
+            source=getattr(transaction, 'source', 'email'),
+            email_message_id=transaction.email_message_id
         )
         db.add(db_transaction)
         db.commit()
@@ -105,8 +107,20 @@ class TransactionCrud:
         return query.all()
 
     @staticmethod
-    def transaction_exists(db: Session, transaction: Transaction) -> bool:
+    def transaction_exists_by_message_id(db: Session, message_id: str) -> bool:
         return db.query(TransactionModel).filter(
+            TransactionModel.email_message_id == message_id
+        ).first() is not None
+
+    @staticmethod
+    def transaction_exists(db: Session, transaction: Transaction) -> bool:
+        """Legacy dedup for rows synced before email_message_id existed.
+
+        Restricted to NULL-message-id rows so two distinct emails with
+        identical (date, amount, merchant) both store.
+        """
+        return db.query(TransactionModel).filter(
+            TransactionModel.email_message_id.is_(None),
             TransactionModel.date == transaction.date,
             TransactionModel.amount == transaction.amount,
             TransactionModel.merchant == transaction.merchant
@@ -117,6 +131,21 @@ class TransactionCrud:
         transaction = db.query(TransactionModel).filter(TransactionModel.id == str(transaction_id)).first()
         if transaction:
             transaction.excluded = excluded
+            db.commit()
+            db.refresh(transaction)
+        return transaction
+
+    @staticmethod
+    def update_transaction_category(
+            db: Session,
+            transaction_id: uuid.UUID,
+            primary_category: str,
+            subcategory: str
+    ) -> Optional[TransactionModel]:
+        transaction = db.query(TransactionModel).filter(TransactionModel.id == str(transaction_id)).first()
+        if transaction:
+            transaction.primary_category = primary_category
+            transaction.subcategory = subcategory
             db.commit()
             db.refresh(transaction)
         return transaction
@@ -240,6 +269,21 @@ class TransactionCrud:
             query = query.filter(TransactionModel.excluded == False)
 
         return query.count()
+
+    @staticmethod
+    def get_transaction_by_id(db: Session, transaction_id: uuid.UUID) -> Optional[TransactionModel]:
+        """Get a single transaction by ID"""
+        return db.query(TransactionModel).filter(TransactionModel.id == str(transaction_id)).first()
+
+    @staticmethod
+    def delete_transaction(db: Session, transaction_id: uuid.UUID) -> bool:
+        """Delete a transaction by ID"""
+        transaction = db.query(TransactionModel).filter(TransactionModel.id == str(transaction_id)).first()
+        if transaction:
+            db.delete(transaction)
+            db.commit()
+            return True
+        return False
 
 
 class SyncInfoCrud:

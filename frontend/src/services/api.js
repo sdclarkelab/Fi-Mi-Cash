@@ -3,10 +3,13 @@ import axios from "axios";
 const API_BASE_URL =
   process.env.REACT_APP_API_BASE_URL || "http://localhost:8000/api/v1";
 
-const api = axios.create({
+const API_KEY = process.env.REACT_APP_API_KEY;
+
+export const api = axios.create({
   baseURL: API_BASE_URL,
   headers: {
     "Content-Type": "application/json",
+    "X-API-Key": API_KEY,
   },
 });
 
@@ -78,9 +81,30 @@ export const toggleTransactionExclusion = async (transactionId, excluded) => {
   }
 };
 
+export const updateTransactionCategory = async (
+  transactionId,
+  primaryCategory,
+  subcategory
+) => {
+  try {
+    const { data } = await api.patch(
+      `/transactions/${transactionId}/category`,
+      {
+        primary_category: primaryCategory,
+        subcategory: subcategory,
+      }
+    );
+    return data;
+  } catch (error) {
+    throw new Error(`Failed to update transaction category: ${error.message}`);
+  }
+};
+
 // Category Rules API functions
 export const getAllRules = async () => {
-  const response = await fetch(`${API_BASE_URL}/rules`);
+  const response = await fetch(`${API_BASE_URL}/rules`, {
+    headers: { "X-API-Key": API_KEY },
+  });
   if (!response.ok) {
     throw new Error(`Failed to fetch rules: ${response.statusText}`);
   }
@@ -92,6 +116,7 @@ export const addRule = async (merchant, category, subcategory) => {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
+      "X-API-Key": API_KEY,
     },
     body: JSON.stringify({ merchant, category, subcategory }),
   });
@@ -109,6 +134,7 @@ export const updateRule = async (merchant, category, subcategory) => {
     method: "PUT",
     headers: {
       "Content-Type": "application/json",
+      "X-API-Key": API_KEY,
     },
     body: JSON.stringify({ merchant, category, subcategory }),
   });
@@ -126,6 +152,7 @@ export const deleteRule = async (merchant) => {
     `${API_BASE_URL}/rules/${encodeURIComponent(merchant)}`,
     {
       method: "DELETE",
+      headers: { "X-API-Key": API_KEY },
     }
   );
 
@@ -180,5 +207,35 @@ export const createTransaction = async (transactionData) => {
     return data;
   } catch (error) {
     throw new Error(`Failed to create transaction: ${error.message}`);
+  }
+};
+
+export const deleteTransaction = async (transactionId) => {
+  try {
+    const { data } = await api.delete(`/transactions/${transactionId}`);
+    return data;
+  } catch (error) {
+    throw new Error(`Failed to delete transaction: ${error.message}`);
+  }
+};
+
+export const getSyncStatus = async () => {
+  try {
+    const { data } = await api.get("/sync/status");
+    return data;
+  } catch (error) {
+    throw new Error(`Failed to fetch sync status: ${error.message}`);
+  }
+};
+
+export const triggerSync = async ({ startDate, endDate }) => {
+  try {
+    const { data } = await api.post("/sync", {
+      start_date: startDate instanceof Date ? startDate.toISOString() : startDate,
+      end_date: endDate instanceof Date ? endDate.toISOString() : endDate,
+    });
+    return data;
+  } catch (error) {
+    throw new Error(`Failed to sync: ${error.message}`);
   }
 };

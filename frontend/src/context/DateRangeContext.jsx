@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useCallback } from "react";
-import { isValid, isAfter, isBefore, startOfDay } from "date-fns";
+import { isValid, isAfter, isBefore, startOfDay, endOfDay } from "date-fns";
 
 const DateRangeContext = createContext();
 
@@ -43,12 +43,12 @@ const validateDateRange = (startDate, endDate) => {
 export const DateRangeProvider = ({ children }) => {
   const [dateRange, setDateRange] = useState({
     startDate: getStartDate(),
-    endDate: new Date(),
+    endDate: endOfDay(new Date()),
   });
 
   const [appliedDateRange, setAppliedDateRange] = useState({
     startDate: getStartDate(),
-    endDate: new Date(),
+    endDate: endOfDay(new Date()),
   });
 
   const [validationError, setValidationError] = useState(null);
@@ -64,12 +64,13 @@ export const DateRangeProvider = ({ children }) => {
     }
     
     setValidationError(null);
-    // Create new date objects to avoid mutation
+    // Create new date objects to avoid mutation; end date is pushed to
+    // end-of-day so the whole end day is included in the range.
     setDateRange({
       startDate: startOfDay(new Date(startDate)),
-      endDate: startOfDay(new Date(endDate))
+      endDate: endOfDay(new Date(endDate))
     });
-    
+
     return true;
   }, []);
 
@@ -84,12 +85,13 @@ export const DateRangeProvider = ({ children }) => {
     }
     
     setValidationError(null);
-    // Create new date objects to avoid mutation
+    // Create new date objects to avoid mutation; end date is pushed to
+    // end-of-day so the whole end day is included in the range.
     setAppliedDateRange({
       startDate: startOfDay(new Date(startDate)),
-      endDate: startOfDay(new Date(endDate))
+      endDate: endOfDay(new Date(endDate))
     });
-    
+
     return true;
   }, []);
 

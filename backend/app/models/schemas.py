@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field
 
 
 class EmailMessage(BaseModel):
+    message_id: str
     subject: str
     sender: str
     date: datetime
@@ -39,6 +40,12 @@ class Transaction(BaseModel):
     
     # Card information
     card_type: Optional[str] = None
+    
+    # Source information
+    source: str = "email"
+
+    # Gmail message id for email-synced transactions (dedup key); None for manual entries
+    email_message_id: Optional[str] = None
 
     class Config:
         json_encoders = {
@@ -61,6 +68,8 @@ class TransactionSummary(BaseModel):
     by_subcategory: Dict[str, CategorySummary]
     by_card_type: Dict[str, CategorySummary]
     merchants: List[str]
+    top_spending_category: Optional[str] = None
+    top_spending_category_amount: Optional[Decimal] = None
 
     class Config:
         json_encoders = {
@@ -101,3 +110,22 @@ class CreateTransactionRequest(BaseModel):
     subcategory: str = Field(min_length=1, max_length=255)
     card_type: str = Field(min_length=1, max_length=50)
     description: Optional[str] = None
+
+
+class SyncStatus(BaseModel):
+    last_sync_date: Optional[datetime] = None
+    synced_start_date: Optional[datetime] = None
+    synced_end_date: Optional[datetime] = None
+
+
+class SyncRequest(BaseModel):
+    start_date: datetime
+    end_date: datetime
+
+
+class SyncResult(BaseModel):
+    fetched: int
+    stored: int
+    skipped: int
+    failed: int
+    last_sync_date: Optional[datetime] = None

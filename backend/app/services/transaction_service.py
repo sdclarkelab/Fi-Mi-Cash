@@ -6,6 +6,7 @@ from datetime import datetime
 from decimal import Decimal
 from typing import List, Optional
 
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.logger import logger
@@ -13,7 +14,7 @@ from app.config import get_settings
 from app.db.crud import TransactionCrud, SyncInfoCrud
 from app.models.schemas import (
     Transaction, TransactionSummary, CategorySummary,
-    EmailMessage, DateRange, CreateTransactionRequest
+    EmailMessage, DateRange, CreateTransactionRequest, SyncResult
 )
 from app.services.classifier_service import MerchantClassifier
 from app.services.gmail_service import GmailService
@@ -54,46 +55,101 @@ class TransactionService:
         )
 
         # Convert DB models to Pydantic models
-        return [
-            Transaction(
-                id=uuid.UUID(tx.id),
-                date=tx.date,
-                amount=Decimal(str(tx.amount)),
-                merchant=tx.merchant,
-                primary_category=tx.primary_category,
-                subcategory=tx.subcategory,
-                confidence=tx.confidence,
-                description=tx.description,
-                excluded=tx.excluded,
-                original_currency=tx.original_currency,
-                original_amount=Decimal(str(tx.original_amount)) if tx.original_amount else None,
-                exchange_rate=Decimal(str(tx.exchange_rate)) if tx.exchange_rate else None,
-                exchange_rate_date=tx.exchange_rate_date,
-                card_type=tx.card_type
-            ) for tx in db_transactions
-        ]
+        return [self._to_transaction(tx) for tx in db_transactions]
 
     async def _sync_transactions(self, date_range: DateRange):
-        """Fetch transactions from Gmail and store in SQLite if not already present"""
-        # Only sync the gaps that haven't been synced yet
+        """Fetch transactions from Gmail and store in SQLite if not already present.
+
+        Each gap is marked synced only if every email in it parsed and stored;
+        a gap with failures stays unsynced so the next request retries it
+        (already-stored emails are skipped by message id, so retries are cheap).
+        """
         sync_gaps = SyncInfoCrud.get_sync_gaps(self.db, date_range)
-        
-        if not sync_gaps:
-            return  # No gaps to sync
-            
+
         for gap in sync_gaps:
             query = self._build_gmail_query(gap)
             emails = self.gmail_service.get_messages(query)
 
-            for email in emails:
-                transaction = await self._parse_transaction(email)
-                if transaction and not TransactionCrud.transaction_exists(self.db, transaction):
-                    TransactionCrud.create_transaction(self.db, transaction)
+            _, _, failed_dates = await self._process_emails(emails)
 
-        # Update the sync info with the originally requested range
-        start_date = date_range.start_date if date_range else None
-        end_date = date_range.end_date if date_range else None
-        SyncInfoCrud.update_last_sync(self.db, start_date, end_date)
+            if failed_dates:
+                logger.error(
+                    f"{len(failed_dates)} email(s) failed to parse in sync range "
+                    f"{gap.start_date}..{gap.end_date} (email dates: {failed_dates}); "
+                    f"range left unsynced and will be retried on the next request"
+                )
+            else:
+                SyncInfoCrud.update_last_sync(self.db, gap.start_date, gap.end_date)
+
+    async def _process_emails(self, emails) -> tuple:
+        """Shared per-email ingest pipeline for lazy and forced syncs.
+
+        Returns (stored, skipped, failed_dates). Skipped counts emails already
+        stored — matched by message id, by a legacy pre-migration row, or by
+        losing a duplicate-insert race to a concurrent sync.
+        """
+        stored = 0
+        skipped = 0
+        failed_dates = []
+        for email in emails:
+            if TransactionCrud.transaction_exists_by_message_id(self.db, email.message_id):
+                skipped += 1
+                continue
+
+            try:
+                transaction = await self._parse_transaction(email)
+            except Exception as e:
+                logger.error(f"Unexpected error processing email dated {email.date}: {e}")
+                transaction = None
+
+            if transaction is None:
+                failed_dates.append(email.date)
+                continue
+
+            # Legacy fallback: rows synced before email_message_id existed
+            if TransactionCrud.transaction_exists(self.db, transaction):
+                skipped += 1
+                continue
+
+            try:
+                TransactionCrud.create_transaction(self.db, transaction)
+                stored += 1
+            except IntegrityError:
+                # A concurrent sync stored this email between our dedup
+                # check and the insert — already stored, move on.
+                self.db.rollback()
+                skipped += 1
+        return stored, skipped, failed_dates
+
+    async def force_sync(self, date_range: DateRange) -> SyncResult:
+        """Re-fetch a date range from Gmail regardless of sync_info coverage.
+
+        Message-id dedup makes a forced re-fetch safe and cheap; the range is
+        marked synced only when every email parsed (same contract as the
+        lazy path).
+        """
+        query = self._build_gmail_query(date_range)
+        emails = self.gmail_service.get_messages(query)
+
+        stored, skipped, failed_dates = await self._process_emails(emails)
+
+        if failed_dates:
+            logger.error(
+                f"{len(failed_dates)} email(s) failed to parse in forced sync "
+                f"{date_range.start_date}..{date_range.end_date} "
+                f"(email dates: {failed_dates}); range not marked synced"
+            )
+        else:
+            SyncInfoCrud.update_last_sync(self.db, date_range.start_date, date_range.end_date)
+
+        sync_info = SyncInfoCrud.get_last_sync(self.db)
+        return SyncResult(
+            fetched=len(emails),
+            stored=stored,
+            skipped=skipped,
+            failed=len(failed_dates),
+            last_sync_date=sync_info.last_sync_date if sync_info else None,
+        )
 
     async def get_summary(
             self,
@@ -126,6 +182,14 @@ class TransactionService:
                     transaction
                 )
 
+        top_spending_category = None
+        top_spending_category_amount = None
+        if primary_categories:
+            top_spending_category, top_summary = max(
+                primary_categories.items(), key=lambda item: item[1].total
+            )
+            top_spending_category_amount = top_summary.total
+
         return TransactionSummary(
             total_spending=sum(t.amount for t in included_transactions),
             transaction_count=len(included_transactions),
@@ -133,7 +197,9 @@ class TransactionService:
             by_primary_category=dict(primary_categories),
             by_subcategory=dict(subcategories),
             by_card_type=dict(card_types),
-            merchants=list(set(t.merchant for t in included_transactions))
+            merchants=list(set(t.merchant for t in included_transactions)),
+            top_spending_category=top_spending_category,
+            top_spending_category_amount=top_spending_category_amount,
         )
 
     async def _get_usd_to_jmd_rate(self, transaction_date: datetime) -> Decimal:
@@ -258,7 +324,9 @@ class TransactionService:
                 original_amount=original_amount,
                 exchange_rate=exchange_rate,
                 exchange_rate_date=exchange_rate_date,
-                card_type=card_type
+                card_type=card_type,
+                source="email",
+                email_message_id=email.message_id
             )
         except Exception as e:
             logger.error(f"Error processing transaction: {str(e)}")
@@ -313,23 +381,44 @@ class TransactionService:
         """Set the exclusion status of a transaction"""
         tx = TransactionCrud.set_exclusion(self.db, transaction_id, excluded)
         if tx:
-            return Transaction(
-                id=uuid.UUID(tx.id),
-                date=tx.date,
-                amount=Decimal(str(tx.amount)),
-                merchant=tx.merchant,
-                primary_category=tx.primary_category,
-                subcategory=tx.subcategory,
-                confidence=tx.confidence,
-                description=tx.description,
-                excluded=tx.excluded,
-                original_currency=tx.original_currency,
-                original_amount=Decimal(str(tx.original_amount)) if tx.original_amount else None,
-                exchange_rate=Decimal(str(tx.exchange_rate)) if tx.exchange_rate else None,
-                exchange_rate_date=tx.exchange_rate_date,
-                card_type=tx.card_type
-            )
+            return self._to_transaction(tx)
         return None
+
+    async def set_transaction_category(
+            self,
+            transaction_id: uuid.UUID,
+            primary_category: str,
+            subcategory: str
+    ) -> Optional[Transaction]:
+        """Set the category of a single transaction"""
+        tx = TransactionCrud.update_transaction_category(
+            self.db, transaction_id, primary_category, subcategory
+        )
+        if tx:
+            return self._to_transaction(tx)
+        return None
+
+    @staticmethod
+    def _to_transaction(tx) -> Transaction:
+        """Convert a TransactionModel row to the Pydantic Transaction schema"""
+        return Transaction(
+            id=uuid.UUID(tx.id),
+            date=tx.date,
+            amount=Decimal(str(tx.amount)),
+            merchant=tx.merchant,
+            primary_category=tx.primary_category,
+            subcategory=tx.subcategory,
+            confidence=tx.confidence,
+            description=tx.description,
+            excluded=tx.excluded,
+            original_currency=tx.original_currency,
+            original_amount=Decimal(str(tx.original_amount)) if tx.original_amount else None,
+            exchange_rate=Decimal(str(tx.exchange_rate)) if tx.exchange_rate else None,
+            exchange_rate_date=tx.exchange_rate_date,
+            card_type=tx.card_type,
+            source=tx.source or "email",
+            email_message_id=tx.email_message_id
+        )
 
     async def _should_sync_transactions(self, date_range: DateRange = None) -> bool:
         """Determine if we need to sync transactions from Gmail using gap-based logic"""
@@ -380,8 +469,22 @@ class TransactionService:
             original_amount=request.amount,
             exchange_rate=None,
             exchange_rate_date=None,
-            card_type=request.card_type
+            card_type=request.card_type,
+            source="manual"
         )
         
         TransactionCrud.create_transaction(self.db, transaction)
         return transaction
+
+    async def delete_transaction(self, transaction_id: uuid.UUID) -> bool:
+        """Delete a transaction if it's manually created"""
+        # First get the transaction to check if it's manual
+        tx = TransactionCrud.get_transaction_by_id(self.db, transaction_id)
+        if not tx:
+            return False
+            
+        # Only allow deletion of manual transactions
+        if tx.source != "manual":
+            raise ValueError("Only manually created transactions can be deleted")
+            
+        return TransactionCrud.delete_transaction(self.db, transaction_id)

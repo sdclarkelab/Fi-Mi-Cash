@@ -112,6 +112,20 @@ async def toggle_transaction_exclusion(
     return transaction
 
 
+@router.patch("/transactions/{transaction_id}/category", response_model=Transaction)
+async def update_transaction_category(
+        transaction_id: uuid.UUID,
+        primary_category: str = Body(..., embed=True),
+        subcategory: str = Body(default="", embed=True),
+        service: TransactionService = Depends(get_transaction_service)
+):
+    """Update the category of a single transaction without touching merchant rules"""
+    transaction = await service.set_transaction_category(transaction_id, primary_category, subcategory)
+    if not transaction:
+        raise HTTPException(status_code=404, detail="Transaction not found")
+    return transaction
+
+
 @router.post("/transactions", response_model=Transaction)
 async def create_transaction(
         request: CreateTransactionRequest,
@@ -123,3 +137,20 @@ async def create_transaction(
         return transaction
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Failed to create transaction: {str(e)}")
+
+
+@router.delete("/transactions/{transaction_id}")
+async def delete_transaction(
+        transaction_id: uuid.UUID,
+        service: TransactionService = Depends(get_transaction_service)
+):
+    """Delete a manually created transaction"""
+    try:
+        success = await service.delete_transaction(transaction_id)
+        if not success:
+            raise HTTPException(status_code=404, detail="Transaction not found")
+        return {"success": True}
+    except ValueError as e:
+        raise HTTPException(status_code=403, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to delete transaction: {str(e)}")
