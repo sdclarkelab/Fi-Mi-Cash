@@ -31,6 +31,7 @@ const TransactionList = () => {
   const [deletingTransaction, setDeletingTransaction] = useState(null);
   const [isDeleteModalOpen, setDeleteModalOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [exportMessage, setExportMessage] = useState(null);
 
   // Helper function to format card type for display
   const formatCardType = (cardType) => {
@@ -106,6 +107,7 @@ const TransactionList = () => {
 
   const handleExport = async () => {
     setExporting(true);
+    setExportMessage(null);
     try {
       const data = await fetchTransactions({
         ...filters,
@@ -123,8 +125,12 @@ const TransactionList = () => {
       link.download = `fi-mi-cash-${day(appliedDateRange.startDate)}-${day(appliedDateRange.endDate)}.csv`;
       link.click();
       URL.revokeObjectURL(url);
+      if (totalCount > 1000) {
+        setExportMessage(`Exported first 1000 of ${totalCount} transactions`);
+      }
     } catch (error) {
       console.error("Failed to export CSV:", error.message);
+      setExportMessage(`Export failed: ${error.message}`);
     } finally {
       setExporting(false);
     }
@@ -188,7 +194,10 @@ const TransactionList = () => {
               {filters.subcategory && ` - ${filters.subcategory}`}.
             </p>
           </div>
-          <div className="mt-4 sm:mt-0 sm:ml-16 sm:flex-none">
+          <div className="mt-4 sm:mt-0 sm:ml-16 sm:flex-none flex items-center gap-3">
+            {exportMessage && (
+              <span className="text-sm text-amber-600">{exportMessage}</span>
+            )}
             <button
               onClick={handleExport}
               disabled={exporting}
